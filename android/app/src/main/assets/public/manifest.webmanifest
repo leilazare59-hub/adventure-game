@@ -1,0 +1,21 @@
+{
+  "name": "بازی ماجراجویی | Adventure Game",
+  "short_name": "ماجراجویی",
+  "description": "بازی پلتفرمر ۱۲۵ مرحله‌ای در پنج فصل: بهار، تابستان، پاییز، زمستان و فضا",
+  "id": "/adventure-game/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "landscape",
+  "background_color": "#0b0f18",
+  "theme_color": "#0b0f18",
+  "lang": "fa",
+  "dir": "rtl",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

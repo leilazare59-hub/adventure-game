@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ماجراجویی</string>
+    <string name="title_activity_main">ماجراجویی</string>
+    <string name="package_name">ir.artam.adventuregame</string>
+    <string name="custom_url_scheme">ir.artam.adventuregame</string>
+</resources>
