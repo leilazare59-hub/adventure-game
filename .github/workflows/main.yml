@@ -83,13 +83,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 🏷️ ضمیمه APK به Release (فقط روی main)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: 🏷️ ضمیمه APK به Release v1.0.0
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-${{ github.run_number }}
+          tag_name: v1.0.0
           name: بازی ماجراجویی — APK ${{ github.run_number }}
-          generate_release_notes: true
+          generate_release_notes: false
+          overwrite: true
           files: android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
