@@ -83,14 +83,28 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 🏷️ ضمیمه APK به Release v1.0.0
+      - name: 🏷️ ایجاد/به‌روزرسانی Release v1.0.0 با APK
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.0
-          name: بازی ماجراجویی — APK ${{ github.run_number }}
-          generate_release_notes: false
-          overwrite: true
-          files: android/app/build/outputs/apk/debug/app-debug.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          ls -la "$APK"
+
+          # بررسی وجود release
+          if gh release view v1.0.0 > /dev/null 2>&1; then
+            echo "Release exists — updating..."
+            # حذف asset قدیمی اگه هست
+            gh release delete-asset v1.0.0 app-debug.apk 2>/dev/null || true
+            # اضافه کردن asset جدید
+            gh release upload v1.0.0 "$APK" --clobber
+          else
+            echo "Creating new release..."
+            gh release create v1.0.0 "$APK" \
+              --title "بازی ماجراجویی — نسخه ۱.۰.۰" \
+              --notes "نسخه ۱.۰.۰ بازی ماجراجویی. APK به‌صورت خودکار توسط GitHub Actions ساخته شده است."
+          fi
+
+          echo "✅ Release updated successfully"
+          gh release view v1.0.0
