@@ -87,67 +87,49 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 🏷️ ایجاد/به‌روزرسانی Release v1.0.0 با APK
+      - name: 🏷️ ایجاد/به‌روزرسانی Release v1.1.0 با APK
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          echo "📦 APK info:"
-          ls -la "$APK"
-          echo "Repo: ${{ github.repository }}"
+          echo "📦 APK exists?"
+          ls -la android/app/build/outputs/apk/debug/
 
-          # بررسی اینکه release وجود داره یا نه (با jq نه python)
-          echo "🔍 Checking if release v1.0.0 exists..."
-          HTTP_CODE=$(curl -sS -o /tmp/release.json -w "%{http_code}" \
+          # اگه release وجود نداره، با tag ساده بسازش
+          echo "🔍 Checking release..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: token $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.0.0")
-          echo "HTTP: $HTTP_CODE"
-          cat /tmp/release.json | head -20
-          echo ""
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.1.0")
 
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Release exists — extracting id..."
-            RELEASE_ID=$(grep -oE '"id": *[0-9]+' /tmp/release.json | head -1 | grep -oE '[0-9]+')
-            echo "Release ID: $RELEASE_ID"
-          else
-            echo "📝 Release does not exist — creating..."
-            curl -sS -X POST \
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Creating release..."
+            curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/releases" \
-              -d "{\"tag_name\":\"v1.0.0\",\"name\":\"بازی ماجراجویی — نسخه ۱.۰.۰\",\"body\":\"نسخه ۱.۰.۰ بازی ماجراجویی. APK به‌صورت خودکار توسط GitHub Actions ساخته شده است.\",\"draft\":false,\"prerelease\":false}" \
-              -o /tmp/release.json
-            cat /tmp/release.json | head -20
-            echo ""
-            RELEASE_ID=$(grep -oE '"id": *[0-9]+' /tmp/release.json | head -1 | grep -oE '[0-9]+')
-            echo "New Release ID: $RELEASE_ID"
+              -d "{\"tag_name\":\"v1.1.0\",\"name\":\"بازی ماجراجویی v1.1.0\",\"body\":\"نسخه ۱.۱.۰ — بازی به‌روزرسانی شده با محتوای جدید\",\"draft\":false,\"prerelease\":false}" \
+              > /dev/null
           fi
 
-          if [ -z "$RELEASE_ID" ]; then
-            echo "❌ Could not determine release id"
-            exit 1
-          fi
+          # پیدا کردن release ID
+          RELEASE_ID=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.1.0" \
+            | grep -oE '"id": *[0-9]+' | head -1 | grep -oE '[0-9]+')
 
+          echo "Release ID: $RELEASE_ID"
+
+          # آپلود APK
           echo "🚀 Uploading APK..."
-          UPLOAD_URL="https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=app-debug.apk"
-          HTTP_STATUS=$(curl -sS -X POST \
+          HTTP=$(curl -s -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary "@$APK" \
-            -o /tmp/upload.json \
+            -o /dev/null \
             -w "%{http_code}" \
-            "$UPLOAD_URL")
-          echo "HTTP status: $HTTP_STATUS"
-          cat /tmp/upload.json | head -10
-          echo ""
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=app-debug.apk")
 
-          if [ "$HTTP_STATUS" = "201" ]; then
-            echo "✅ APK uploaded successfully"
-          else
-            echo "❌ Upload failed with status $HTTP_STATUS"
-            exit 1
-          fi
+          echo "Upload HTTP: $HTTP"
+          [ "$HTTP" = "201" ] && echo "✅ Done!" || (echo "❌ Failed"; exit 1)
