@@ -94,7 +94,7 @@ function saveGame() {
 function loadGame() {
     try {
         const raw = localStorage.getItem("advGame3");
-        if (!raw) { ensureInstallTime(); return; }
+        if (!raw) { ensureInstallTime(); ensureEndlessKeyTimestamp(); return; }
         const d = JSON.parse(raw);
         if (d.totalCoins !== undefined) totalCoins = d.totalCoins;
         if (d.selectedSkin && SKINS[d.selectedSkin]) selectedSkin = d.selectedSkin;
