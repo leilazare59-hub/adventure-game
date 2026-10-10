@@ -1,19 +1,15 @@
 name: Build Android APK
 
 on:
-  # با هر push روی main یا branch جلسه
   push:
     branches:
       - main
       - arena/**
-  # با هر pull request
   pull_request:
     branches:
       - main
-  # اجرای دستی از تب Actions
   workflow_dispatch:
 
-# اجازه‌ی نوشتن برای ساختن release و آپلود APK
 permissions:
   contents: write
 
@@ -24,31 +20,30 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: 📥 دریافت کد
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 نصب Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: 📂 ساخت پوشه dist و کپی index.html
+      - name: Prepare dist
         run: |
           mkdir -p dist
           cp index.html dist/index.html
-          # اگه فایل manifest یا آیکن لازم بود همین‌جا کپی کن
           for f in manifest.webmanifest icon-192.png apple-touch-icon.png icon-512.png icon-512-maskable.png; do
             if [ -f "$f" ]; then cp "$f" "dist/$f"; fi
           done
           ls -la dist/
 
-      - name: 📦 نصب Capacitor
+      - name: Install Capacitor
         run: |
           npm init -y > /dev/null
           npm install --save @capacitor/core@^6 @capacitor/android@^6 @capacitor/cli@^6
           npx cap --version
 
-      - name: ⚙️ ساخت فایل تنظیمات Capacitor
+      - name: Capacitor config
         run: |
           cat > capacitor.config.json <<'EOF'
           {
@@ -65,71 +60,166 @@ jobs:
             }
           }
           EOF
-          cat capacitor.config.json
 
-      - name: ➕ افزودن پلتفرم اندروید
+      - name: Add Android platform
         run: npx cap add android
 
-      - name: 🔄 همگام‌سازی فایل‌های وب
+      - name: Sync
         run: npx cap sync android
 
-      - name: 🔨 ساخت APK دیباگ
+      - name: Setup keystore
+        id: keystore
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "::notice::Using provided keystore from secrets"
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.keystore
+            echo "key_alias=${{ secrets.ANDROID_KEY_ALIAS }}" >> $GITHUB_OUTPUT
+            echo "key_password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> $GITHUB_OUTPUT
+            echo "store_password=${{ secrets.ANDROID_STORE_PASSWORD }}" >> $GITHUB_OUTPUT
+            echo "temp=false" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::No keystore in secrets — generating temporary one. Set GitHub Secrets to enable updates."
+            keytool -genkeypair -keystore /tmp/release.keystore -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass temppass123 -keypass temppass123 -dname "CN=Adventure Game,O=Personal,C=IR"
+            echo "key_alias=upload" >> $GITHUB_OUTPUT
+            echo "key_password=temppass123" >> $GITHUB_OUTPUT
+            echo "store_password=temppass123" >> $GITHUB_OUTPUT
+            echo "temp=true" >> $GITHUB_OUTPUT
+          fi
+          ls -la /tmp/release.keystore
+
+      - name: Configure signing in build.gradle
+        working-directory: android
+        run: |
+          cat > signing.properties <<EOF
+          KEYSTORE_FILE=/tmp/release.keystore
+          KEY_ALIAS=${{ steps.keystore.outputs.key_alias }}
+          KEY_PASSWORD=${{ steps.keystore.outputs.key_password }}
+          STORE_PASSWORD=${{ steps.keystore.outputs.store_password }}
+          EOF
+
+          python3 <<'PYEOF'
+          with open('app/build.gradle', 'r') as f:
+              content = f.read()
+
+          signing_block = """
+          def signingPropsFile = rootProject.file("signing.properties")
+          def signingProps = new Properties()
+          if (signingPropsFile.exists()) {
+              signingProps.load(new FileInputStream(signingPropsFile))
+          }
+
+          android {
+              signingConfigs {
+                  release {
+                      if (signingPropsFile.exists()) {
+                          storeFile file(signingProps['KEYSTORE_FILE'])
+                          storePassword signingProps['STORE_PASSWORD']
+                          keyAlias signingProps['KEY_ALIAS']
+                          keyPassword signingProps['KEY_PASSWORD']
+                      }
+                  }
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      if (signingPropsFile.exists()) {
+                          signingConfig signingConfigs.release
+                      }
+                  }
+              }
+          }
+          """
+
+          if 'signingConfigs' not in content:
+              content = content.rstrip() + '\n' + signing_block + '\n'
+
+          with open('app/build.gradle', 'w') as f:
+              f.write(content)
+          PYEOF
+          echo "Done"
+
+      - name: Build release APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon 2>&1 | tail -20
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            echo "✅ Release APK built"
+          else
+            echo "❌ Release build failed — falling back to debug"
+            ./gradlew assembleDebug --no-daemon 2>&1 | tail -10
+          fi
 
-      - name: 📤 آپلود APK به‌عنوان Artifact
+      - name: Detect final APK
+        id: apk
+        working-directory: android
+        run: |
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            echo "kind=release" >> $GITHUB_OUTPUT
+          else
+            echo "kind=debug" >> $GITHUB_OUTPUT
+          fi
+          ls -la app/build/outputs/apk/${{ steps.apk.outputs.kind }}/
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-${{ steps.apk.outputs.kind }}
+          path: android/app/build/outputs/apk/${{ steps.apk.outputs.kind }}/app-${{ steps.apk.outputs.kind }}.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: 🏷️ ایجاد/به‌روزرسانی Release v1.3.0 با APK
+      - name: Publish release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          echo "📦 APK exists?"
-          ls -la android/app/build/outputs/apk/debug/
+          KIND="${{ steps.apk.outputs.kind }}"
+          TAG="v1.3.0"
+          APK_PATH="android/app/build/outputs/apk/$KIND/app-$KIND.apk"
+          ls -la "$APK_PATH"
 
-          # اگه release وجود نداره، با tag ساده بسازش
-          echo "🔍 Checking release..."
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.3.0")
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG")
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "Creating release..."
             curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/releases" \
-              -d "{\"tag_name\":\"v1.3.0\",\"name\":\"بازی ماجراجویی v1.3.0\",\"body\":\"نسخه ۱.۳.۰ — سیستم زمان‌بندی کلیدهای بی‌نهایت (Endless Key Recharge) — کلیدها بر اساس زمان دوباره پر می‌شوند\",\"draft\":false,\"prerelease\":false}" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"بازی ماجراجویی v1.3.0\",\"body\":\"نسخه ۱.۳.۰ — سیستم زمان‌بندی کلیدهای بی‌نهایت\",\"draft\":false,\"prerelease\":false}" \
               > /dev/null
           fi
 
-          # پیدا کردن release ID
           RELEASE_ID=$(curl -s \
             -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.3.0" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" \
             | grep -oE '"id": *[0-9]+' | head -1 | grep -oE '[0-9]+')
-
           echo "Release ID: $RELEASE_ID"
 
-          # آپلود APK
-          echo "🚀 Uploading APK..."
+          ASSET_JSON=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets")
+          for aid in $(echo "$ASSET_JSON" | grep -oE '"id": *[0-9]+' | grep -oE '[0-9]+'); do
+            curl -s -X DELETE \
+              -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/$aid" || true
+          done
+
           HTTP=$(curl -s -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary "@$APK" \
+            --data-binary "@$APK_PATH" \
             -o /dev/null \
             -w "%{http_code}" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=app-debug.apk")
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=app-$KIND.apk")
 
           echo "Upload HTTP: $HTTP"
-          [ "$HTTP" = "201" ] && echo "✅ Done!" || (echo "❌ Failed"; exit 1)
+          [ "$HTTP" = "201" ] && echo "✅ Done" || (echo "❌ Failed"; exit 1)
+
+      - name: Warning if no permanent keystore
+        if: steps.keystore.outputs.temp == 'true'
+        run: |
+          echo "::warning::No permanent keystore configured. To enable updates without uninstall, add ANDROID_KEYSTORE_BASE64 to GitHub Secrets. See README.md for instructions."
