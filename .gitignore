@@ -1,8 +1,4 @@
 # بیلدهای محلی
-*.apk
-*.aab
-*.keystore
-*.jks
 build/
 dist/
 .gradle/
