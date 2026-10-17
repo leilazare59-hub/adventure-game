@@ -32,7 +32,8 @@ jobs:
         run: |
           mkdir -p dist
           cp index.html dist/index.html
-          for f in manifest.webmanifest icon-192.png apple-touch-icon.png icon-512.png icon-512-maskable.png; do
+          # PWA assets
+          for f in manifest.webmanifest sw.js icon-192.png icon-512.png icon-512-maskable.png apple-touch-icon.png; do
             if [ -f "$f" ]; then cp "$f" "dist/$f"; fi
           done
           ls -la dist/
@@ -189,7 +190,7 @@ jobs:
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/releases" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"بازی ماجراجویی v1.3.0\",\"body\":\"نسخه ۱.۳.۰ — سیستم زمان‌بندی کلیدهای بی‌نهایت\",\"draft\":false,\"prerelease\":false}" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"بازی ماجراجویی v1.4.0\",\"body\":\"نسخه ۱.۴.۰ — PWA کامل: نصب به‌عنوان اپ، تمام‌صفحه، چرخش خودکار، آفلاین (Service Worker)، بازی گسترش‌یافته (۸۲۶۷ خط)\",\"draft\":false,\"prerelease\":false}" \
               > /dev/null
           fi
 
