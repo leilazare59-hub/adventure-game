@@ -1,0 +1,11 @@
+# بیلدهای محلی
+build/
+dist/
+.gradle/
+local.properties
+
+# Node / IDE
+node_modules/
+.DS_Store
+.idea/
+.vscode/
