@@ -7628,7 +7628,7 @@ function drawMenu() {
     ];
     menuButtons.forEach(drawButton);
     drawWheelButton();
-    drawInstallButton(); drawBuildTag();
+    drawInstallButton();
     drawDailyButton();
     drawUIParticles();
 }
@@ -8179,7 +8179,8 @@ function gameFrame() {
     // این مقدار فقط معنای textAlign="start"/"end" را عوض می‌کند. چون بیش از ۴۰ جای کد از "start" به‌معنای «چپ» استفاده کرده‌اند،
     // تنظیم آن روی rtl باعث جابه‌جایی نادرست متن‌ها در حالت فارسی می‌شد؛ بنابراین همیشه ltr نگه داشته می‌شود.
     ctx.direction = "ltr";
-    if (gameState === "playing") {
+    if (gameState === "loading") { stepLoading(); drawLoading(); }
+    else if (gameState === "playing") {
         updatePlaying();
         if (gameState === "playing") drawPlayingScreen();
         else if (gameState === "win") drawEndScreen(true);
@@ -8221,6 +8222,9 @@ function gameFrame() {
 // منطق بازی بر پایه‌ی «هر فریم» نوشته شده؛ روی گوشی‌های ۹۰/۱۲۰/۱۴۴ هرتز بدون این محدودکننده بازی سریع‌تر از حد عادی اجرا می‌شد.
 // فقط یک حلقه‌ی rAF وجود دارد و قبل از اجرای فریم دوباره زمان‌بندی می‌شود تا خطای احتمالی یک فریم، کل بازی را قفل نکند.
 const FRAME_MS = 1000 / 60;
+// سرعت بازی: ۱٫۰ = سرعت استاندارد ۶۰ گام در ثانیه. اگر بازی کند/تند حس می‌شود فقط همین عدد را عوض کن (مثلاً ۱٫۱۵ سریع‌تر، ۰٫۹ آرام‌تر)
+const GAME_SPEED = 1.1;
+const STEP_MS = FRAME_MS / GAME_SPEED;
 let loopLastTs = 0, loopAcc = 0, loopRunning = false;
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
@@ -8228,9 +8232,81 @@ function gameLoop(ts) {
     let dt = ts - loopLastTs; loopLastTs = ts;
     if (dt > 250 || dt < 0) dt = FRAME_MS;          // برگشت از پس‌زمینه/توقف طولانی: زمان جبران نشود
     loopAcc += dt;
-    if (loopAcc < FRAME_MS - 1.5) return;             // صفحه‌ی پرهرتز: این فریم را رد کن
-    loopAcc -= FRAME_MS; if (loopAcc > FRAME_MS) loopAcc = 0;
-    try { gameFrame(); } catch (err) { if (window.console) console.error(err); }
+    if (loopAcc < STEP_MS - 1.5) return;              // صفحه‌ی پرهرتز: این فریم را رد کن
+    let steps = 0;
+    while (loopAcc >= STEP_MS - 1.5 && steps < 3) { loopAcc -= STEP_MS; steps++; }
+    if (loopAcc > STEP_MS) loopAcc = 0;
+    try {
+        // گوشی ضعیف که فریم می‌اندازد: گام‌های منطق جبران می‌شود (بدون رسم اضافه) تا بازی آهسته نشود
+        for (let i = 0; i < steps - 1; i++) { if (gameState !== "playing") break; globalFrame++; updatePlaying(); }
+        gameFrame();
+    } catch (err) { if (window.console) console.error(err); }
+}
+
+// ===================== صفحه‌ی لودینگ اول بازی =====================
+// همه‌ی گرافیک بازی با کد روی Canvas رسم می‌شود (تصویر بیرونی ندارد)؛ لودینگ این‌ها را پیش‌گرم می‌کند:
+// فونت فارسی، موسیقی، و یک بار رسم همه‌ی صفحه‌ها (کش گرادیان‌ها، شکل‌ها و اسکین‌ها) تا وسط بازی روی گوشی ضعیف گیر نکند.
+const LOAD = { t0: 0, task: 0, fonts: false, taskT0: 0, warmI: 0, done: false, shown: 0, after: "menu" };
+function loadingTasks() {
+    return [
+        { w: 2, run() { // فونت
+            if (!LOAD.fontsStarted) { LOAD.fontsStarted = true; try { if (document.fonts && document.fonts.load) Promise.all(["400", "700", "900"].map((w) => document.fonts.load(w + " 16px Vazirmatn").catch(() => { }))).then(() => { LOAD.fonts = true; }, () => { LOAD.fonts = true; }); else LOAD.fonts = true; } catch (e) { LOAD.fonts = true; } }
+            return LOAD.fonts || performance.now() - LOAD.taskT0 > 2500; } },
+        { w: 3, run() { // موسیقی
+            let ok = true; try { [musicA, musicB].forEach((a) => { if (a && a.readyState < 3 && !a.error) ok = false; }); } catch (e) { }
+            return ok || performance.now() - LOAD.taskT0 > 3000; } },
+        { w: 5, run() { // پیش‌گرم‌کردن رسم صفحه‌ها: هر فریم یک صفحه
+            const fns = [drawMenu, drawModeSelect, drawLevels, drawShop, drawSettings, drawWheelScreen, drawDailyReward, drawAudioSettings, drawGfxSettings, drawEndlessTower];
+            if (LOAD.warmI >= fns.length) return true;
+            const fn = fns[LOAD.warmI++];
+            try { ctx.save(); fn(); } catch (e) { } finally { try { ctx.restore(); } catch (e2) { } }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.textAlign = "start";
+            return LOAD.warmI >= fns.length; } }
+    ];
+}
+let LOAD_TASKS = null;
+function loadingProgress() {
+    const tot = LOAD_TASKS.reduce((a, t) => a + t.w, 0); let done = 0;
+    for (let i = 0; i < LOAD_TASKS.length; i++) { if (i < LOAD.task) done += LOAD_TASKS[i].w; }
+    if (LOAD.task < LOAD_TASKS.length && LOAD_TASKS[LOAD.task].frac) done += LOAD_TASKS[LOAD.task].w * LOAD_TASKS[LOAD.task].frac();
+    if (LOAD.task === 2) done += LOAD_TASKS[2].w * Math.min(1, LOAD.warmI / 10);
+    return Math.min(1, done / tot);
+}
+function stepLoading() {
+    if (!LOAD_TASKS) { LOAD_TASKS = loadingTasks(); LOAD.t0 = performance.now(); LOAD.taskT0 = LOAD.t0; }
+    const now = performance.now();
+    if (!LOAD.done) {
+        if (LOAD.task < LOAD_TASKS.length) {
+            let ok = false; try { ok = LOAD_TASKS[LOAD.task].run(); } catch (e) { ok = true; }
+            if (ok) { LOAD.task++; LOAD.taskT0 = now; }
+        }
+        const finished = LOAD.task >= LOAD_TASKS.length;
+        if ((finished && now - LOAD.t0 > 900) || now - LOAD.t0 > 8000) LOAD.done = true; // حداقل ~۱ ثانیه تا نوار دیده شود؛ سقف ۸ ثانیه تا هرگز گیر نکند
+    }
+    const target = LOAD.done ? 1 : loadingProgress() * 0.98;
+    LOAD.shown += (target - LOAD.shown) * 0.12;
+    if (LOAD.done && LOAD.shown > 0.985) { LOAD.shown = 1; gameState = LOAD.after; }
+}
+function drawLoading() {
+    const W = canvas.width, H = canvas.height, fa = lang === "fa";
+    ctx.save(); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0E1B2C"); g.addColorStop(1, "#1B3B4F"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // ستاره‌های سبک
+    ctx.fillStyle = "#fff";
+    for (let i = 0; i < 26; i++) { ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(globalFrame * 0.03 + i)); ctx.fillRect(hash01(i * 3.1) * W, hash01(i * 7.7) * H * 0.8, 2, 2); }
+    ctx.globalAlpha = 1; ctx.textAlign = "center";
+    ctx.font = F(40, 900); ctx.fillStyle = "#fff"; ctx.fillText(t("title"), W / 2, H / 2 - 54);
+    // دروازه‌ی چرخان کوچک
+    const cx = W / 2, cy = H / 2 - 6, a0 = globalFrame * 0.08;
+    ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.strokeStyle = "#4FC3F7"; ctx.beginPath(); ctx.arc(cx, cy, 16, a0, a0 + Math.PI * 1.35); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.arc(cx, cy, 9, -a0 * 1.4, -a0 * 1.4 + Math.PI); ctx.stroke();
+    // نوار پیشرفت
+    const bw = Math.min(360, W - 160), bh = 12, bx = W / 2 - bw / 2, by = H / 2 + 44;
+    ctx.fillStyle = "rgba(255,255,255,0.14)"; roundRect(bx, by, bw, bh, 6); ctx.fill();
+    const pw = Math.max(bh, bw * LOAD.shown); ctx.fillStyle = "#FFB300"; roundRect(bx, by, pw, bh, 6); ctx.fill();
+    ctx.font = F(14, 700); ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fillText((fa ? "در حال آماده‌سازی… " : "Getting ready… ") + Math.round(LOAD.shown * 100) + "%", W / 2, by + 36);
+    ctx.restore(); ctx.textAlign = "start";
 }
 
 // ===================== PWA: نصب و اجرای آفلاین =====================
@@ -8282,21 +8358,25 @@ function doInstall() {
     if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; }); }
 }
 function goFullscreen() {
-    // بعد از اولین لمس واقعی روی دستگاه لمسی: اگر Fullscreen API هست استفاده می‌شود؛ بعد قفل افقی. هیچ UI اضافه‌ای ندارد.
+    // روی دستگاه لمسی با لمسِ واقعی تلاش می‌شود تا موفق شود؛ اگر کاربر با ژست سیستم خارج شد، لمس بعدی دوباره وارد می‌شود. هیچ دکمه‌ی UI ندارد.
     const el = document.documentElement;
     const rq = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
     const lock = () => { const so = window.screen && window.screen.orientation; if (so && so.lock) { try { const r = so.lock("landscape"); if (r && r.catch) r.catch(() => {}); } catch (e) { } } };
-    if (rq && !document.fullscreenElement && !document.webkitFullscreenElement) { try { const r = rq.call(el); if (r && r.then) r.then(lock, lock); else lock(); } catch (e) { lock(); } }
-    else lock();
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (rq && !isFs) { try { const r = rq.call(el, { navigationUI: "hide" }); if (r && r.then) r.then(lock, () => { }); else lock(); } catch (e) { try { const r2 = rq.call(el); if (r2 && r2.then) r2.then(lock, () => { }); } catch (e2) { } } }
+    else if (isFs) lock();
 }
-let fsDone = false;
+let fsLastTry = 0;
 const coarsePointer = () => (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || ((navigator.maxTouchPoints || 0) > 0 && (window.matchMedia ? !window.matchMedia("(pointer: fine)").matches || window.innerWidth < 1100 : true));
-const firstGesture = () => { if (!fsDone && coarsePointer()) { fsDone = true; goFullscreen(); } };
-["touchend", "pointerup", "click"].forEach((ev) => canvas.addEventListener(ev, firstGesture, { passive: true }));
+const firstGesture = () => {
+    if (!coarsePointer() || document.fullscreenElement || document.webkitFullscreenElement) return;
+    const n = Date.now(); if (n - fsLastTry < 1500) return; fsLastTry = n;
+    goFullscreen();
+};
+["touchend", "pointerup", "click"].forEach((ev) => window.addEventListener(ev, firstGesture, { passive: true }));
 if (isStandalone && coarsePointer()) { try { const so = window.screen && window.screen.orientation; if (so && so.lock) so.lock("landscape").catch(() => {}); } catch (e) { } } // PWA نصب‌شده: قفل افقی از همان ابتدا
 
-const BUILD_TAG = "v8 · Endless";
-function drawBuildTag() { ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.42)"; ctx.font = F(10, 400); ctx.textAlign = "center"; ctx.fillText(BUILD_TAG, canvas.width / 2, canvas.height - 8); ctx.restore(); }
+function _removedBuildTag() { ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.42)"; ctx.font = F(10, 400); ctx.textAlign = "center"; ctx.fillText(BUILD_TAG, canvas.width / 2, canvas.height - 8); ctx.restore(); }
 function drawInstallButton() {
     // هیچ دکمه‌ی Fullscreen در UI نیست؛ فقط وقتی مرورگر واقعاً «نصب» را پیشنهاد می‌دهد، دکمه‌ی نصب دیده می‌شود
     if (isStandalone || !deferredPrompt) { installBtnRect = { x: 0, y: 0, w: 0, h: 0 }; return; }
@@ -8315,6 +8395,7 @@ function drawInstallButton() {
 
 loadGame();
 resizeGame();
+LOAD.after = (gameState && gameState !== "loading") ? gameState : "menu"; gameState = "loading"; // لودینگ اول بازی
 if (!loopRunning) { loopRunning = true; requestAnimationFrame(gameLoop); }
 
 // ===================== مخصوص موبایل: پس‌زمینه، منوی لمس طولانی، ژست‌های iOS =====================
