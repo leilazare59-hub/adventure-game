@@ -70,6 +70,706 @@ let tutorialState = null; // null | "showing" | "done"
 let tutorialTimer = 0;
 const TUTORIAL_DURATION = 900;
 
+// ===================== داستان ۱۶۰ مرحله‌ای: داده‌ها + ذخیره‌ی نسخه‌ی ۲ (فاز ۱) =====================
+// این بخش فقط «داده و منطق ذخیره» است؛ رابط و گیم‌پلی فعلی را تغییر نمی‌دهد. مراحل قدیمی (LEVELS1..6) در لایه‌ی سازگاری می‌مانند.
+// نوع مرحله (k): ex=اکتشاف، pz=معما، cb=مبارزه، pf=پلتفرمینگ، df=دفاع، ch=تعقیب، bs=باس
+const STORY_CHAPTER_SIZE = 20, STORY_CHAPTER_COUNT = 8, STORY_LEVEL_COUNT = 160;
+const STORY_CHAPTERS = [
+    { fa: "سیگنال ناشناخته", en: "Unknown Signal", env: "earth", suit: 0, accent: "#4FC3F7", lv: [
+        ["مرکز تحقیقاتی", "Research Center", "ex"], ["اختلال برق", "Power Disruption", "pz"], ["دستگاه خاموش", "Silent Device", "pz"], ["ربات سرگردان", "Wandering Robot", "cb"],
+        ["موجود نارنجی", "The Orange Creature", "cb"], ["راهروی امنیتی", "Security Corridor", "pf"], ["اتاق مشاهده", "Observation Room", "ex"], ["انرژی ناپایدار", "Unstable Energy", "pf"],
+        ["نگهبان آزمایشگاه", "Lab Guardian", "cb"], ["اتاق شیشه‌ای", "Glass Room", "pz"], ["بخش قدیمی", "The Old Wing", "ex"], ["کابل زیرزمینی", "Underground Cable", "pf"],
+        ["نقشه ناقص", "Incomplete Map", "ex"], ["زره انرژی", "Energy Armor", "cb"], ["خاموشی کامل", "Total Blackout", "pz"], ["محفظه انرژی", "Energy Chamber", "pz"],
+        ["پیام بیگانه", "Alien Message", "ex"], ["دفاع از مرکز", "Defend the Center", "df"], ["گشایش دروازه", "Opening the Gate", "pz"], ["باس نگهبان سیگنال", "Boss: Signal Guardian", "bs"] ] },
+    { fa: "ماهی که روی نقشه نیست", en: "The Moon Not on the Map", env: "moon", suit: 2, accent: "#B0BEC5", lv: [
+        ["فرود", "Touchdown", "ex"], ["جاذبه کم", "Low Gravity", "pf"], ["خزنده قمری", "Lunar Crawler", "cb"], ["پایگاه زیرزمینی", "Underground Base", "ex"],
+        ["برج مخابرات", "Comm Tower", "pz"], ["نگهبان سپردار", "Shield Guard", "cb"], ["سایه قمری", "Lunar Shade", "cb"], ["تونل یخی", "Ice Tunnel", "pf"],
+        ["آرشیو پایگاه", "Base Archive", "ex"], ["اتاق پهپادها", "Drone Room", "cb"], ["اکسیژن", "Oxygen", "pz"], ["دروازه‌های کوچک", "Small Gates", "pz"],
+        ["بازتاب‌ها", "Reflections", "cb"], ["میدان مغناطیسی", "Magnetic Field", "pf"], ["رصدخانه", "Observatory", "ex"], ["گذرگاه امنیتی", "Security Passage", "pf"],
+        ["قطعه شبکه", "Network Fragment", "ex"], ["اتاق فرماندهی", "Command Room", "pz"], ["دفاع هماهنگ", "Coordinated Defense", "df"], ["باس فرمانده پایگاه", "Boss: Base Commander", "bs"] ] },
+    { fa: "مسیرهایی که جابه‌جا می‌شوند", en: "Shifting Paths", env: "asteroids", suit: 2, accent: "#FF8A65", lv: [
+        ["ورود به کمربند", "Entering the Belt", "ex"], ["سکوی شناور", "Floating Platform", "pf"], ["پهپاد تعمیرکار", "Repair Drone", "ch"], ["سنگ‌های مغناطیسی", "Magnetic Rocks", "pf"],
+        ["بارش شهاب", "Meteor Shower", "pf"], ["دزد انرژی", "Energy Thief", "cb"], ["ایستگاه شکسته", "Broken Station", "ex"], ["هشدار دوم", "Second Warning", "ex"],
+        ["تونل سیارکی", "Asteroid Tunnel", "ex"], ["نگهبان مغناطیسی", "Magnetic Guardian", "cb"], ["میدان معکوس", "Reversed Field", "pf"], ["سه باتری", "Three Batteries", "pz"],
+        ["دسته پهپادها", "Drone Swarm", "cb"], ["تعمیر ایستگاه", "Station Repair", "pz"], ["نماد باستانی", "Ancient Symbol", "ex"], ["سکوی ناپایدار", "Unstable Platform", "pf"],
+        ["تصویر ناقص", "Broken Image", "ex"], ["طوفان سنگی", "Rock Storm", "ch"], ["دروازه مریخ", "Mars Gate", "pz"], ["باس نگهبان سیارک", "Boss: Asteroid Guardian", "bs"] ] },
+    { fa: "شهری که هیچ‌کس ترک نکرد", en: "The City No One Left", env: "mars", suit: 2, accent: "#E57345", lv: [
+        ["فرود روی مریخ", "Landing on Mars", "ex"], ["دروازه شهر", "City Gate", "ex"], ["پنجره‌های ناظر", "Watching Windows", "ch"], ["کارخانه ربات‌ها", "Robot Factory", "pf"],
+        ["نگهبان زره‌دار", "Armored Guard", "cb"], ["نمایشگرهای شهری", "City Displays", "ex"], ["برج رله", "Relay Tower", "pz"], ["تونل زیرزمینی", "Underground Tunnel", "ex"],
+        ["موجود شن‌رو", "Sand Crawler", "cb"], ["مخزن انرژی", "Energy Vault", "pz"], ["آرشیو شهر", "City Archive", "ex"], ["آزمایشگاه رباتیک", "Robotics Lab", "ex"],
+        ["دروازه جعلی", "False Gate", "pz"], ["حمله از پشت‌بام", "Rooftop Assault", "cb"], ["ربات سنگین", "Heavy Robot", "cb"], ["برج مرکزی", "Central Tower", "ex"],
+        ["رمز برج", "Tower Cipher", "pz"], ["فروپاشی کارخانه", "Factory Collapse", "ch"], ["راهروی فرماندهی", "Command Corridor", "df"], ["باس نگهبان دروازه مریخ", "Boss: Mars Gate Guardian", "bs"] ] },
+    { fa: "ایستگاهی که آینده را ثبت می‌کرد", en: "The Station That Recorded the Future", env: "station", suit: 1, accent: "#80CBC4", lv: [
+        ["ورود به ایستگاه", "Station Entry", "ex"], ["کم‌جاذبه", "Weightless Halls", "pf"], ["ربات نظافتچی", "Cleaner Robot", "cb"], ["اتاق خدمه", "Crew Quarters", "ex"],
+        ["لیزرهای امنیتی", "Security Lasers", "pf"], ["ژنراتور", "Generator", "pz"], ["پهپاد رهگیر", "Interceptor Drone", "ch"], ["جاذبه متغیر", "Shifting Gravity", "pf"],
+        ["آزمایشگاه ثبت حرکت", "Motion-Capture Lab", "ex"], ["نگهبان مکانیکی", "Mechanical Guardian", "cb"], ["پیام پژوهشگر", "Researcher's Message", "ex"], ["شبکه کابل‌ها", "Cable Network", "pz"],
+        ["مسیرهای نوری", "Light Paths", "pz"], ["دشمن تحلیلگر", "Analyst Enemy", "cb"], ["موتور ایستگاه", "Station Engine", "pf"], ["آرشیو سازنده", "Builder's Archive", "ex"],
+        ["دفاع ژنراتور", "Defend the Generator", "df"], ["راهروی هسته", "Core Corridor", "pf"], ["امنیت مرکزی", "Central Security", "pz"], ["باس نگهبان هسته", "Boss: Core Guardian", "bs"] ] },
+    { fa: "مرزی که در نقشه وجود ندارد", en: "The Border Not on the Map", env: "blackhole", suit: 2, accent: "#B388FF", lv: [
+        ["ورود به مرز", "Entering the Border", "ex"], ["پل نور", "Light Bridge", "pf"], ["گوی گرانشی", "Gravity Orb", "pf"], ["مسیر خمیده", "Curved Path", "pf"],
+        ["دشمن موجی", "Wave Enemy", "cb"], ["سکوی معلق", "Suspended Platform", "pf"], ["حرکت‌های احتمالی", "Possible Moves", "pz"], ["تونل حلقه‌ای", "Ring Tunnel", "pf"],
+        ["دیوار انرژی", "Energy Wall", "pf"], ["نگهبان مرز", "Border Guardian", "cb"], ["پیام‌های آرشیوی", "Archive Messages", "ex"], ["سکوهای وارونه", "Inverted Platforms", "pf"],
+        ["تعقیب‌کننده", "The Pursuer", "ch"], ["سه گوی", "Three Orbs", "pz"], ["دروازه شکسته", "Broken Gate", "pz"], ["بازتاب با تأخیر", "Delayed Reflection", "pz"],
+        ["موج گرانشی", "Gravity Wave", "pf"], ["ترکیب چالش‌ها", "Combined Challenges", "cb"], ["رمز بیرون نقشه", "Off-Map Cipher", "pz"], ["باس نگهبان مرز", "Boss: Border Warden", "bs"] ] },
+    { fa: "آرشیو جهان‌های فراموش‌شده", en: "Archive of Forgotten Worlds", env: "cave", suit: 1, accent: "#7C4DFF", lv: [
+        ["ورود به غار", "Entering the Cave", "ex"], ["ترتیب کریستال‌ها", "Crystal Order", "pz"], ["نگهبان سنگی", "Stone Guardian", "cb"], ["دو مسیر", "Two Paths", "ex"],
+        ["مینی‌باس نگهبان آینه", "Mini-Boss: Mirror Guardian", "bs"], ["پل کریستالی", "Crystal Bridge", "pz"], ["زبان نمادها", "Language of Symbols", "ex"], ["موجود کریستالی", "Crystal Creature", "cb"],
+        ["دروازه سه‌رنگ", "Tri-Color Gate", "pz"], ["نگهبان کوچک", "Small Guardian", "cb"], ["تالار آینه‌ها", "Hall of Mirrors", "pz"], ["قطعات کلید", "Key Fragments", "ex"],
+        ["اتاق حافظه", "Memory Room", "ex"], ["کریستال‌های متحرک", "Moving Crystals", "pf"], ["آزمون مسیر", "Path Trial", "ex"], ["موجود باستانی", "Ancient Being", "cb"],
+        ["سکوی مرکزی", "Central Platform", "pf"], ["فعال‌سازی دروازه", "Gate Activation", "pz"], ["نگهبانان آرشیو", "Archive Guardians", "cb"], ["باس نگهبان آرشیو", "Boss: Archive Guardian", "bs"] ] },
+    { fa: "شهری که در آسمان پنهان شده", en: "The City Hidden in the Sky", env: "venus", suit: 2, accent: "#FFD54F", lv: [
+        ["ورود به زهره", "Arriving at Venus", "ex"], ["سکوهای هوایی", "Aerial Platforms", "pf"], ["پهپاد بادی", "Wind Drone", "cb"], ["سه برج", "Three Towers", "pz"],
+        ["میدان باد", "Wind Field", "pf"], ["نگهبان ابری", "Cloud Guardian", "cb"], ["باغ انرژی", "Energy Garden", "ex"], ["پل شناور", "Floating Bridge", "pz"],
+        ["ربات‌های خدماتی", "Service Robots", "ex"], ["اتاق نقشه", "Map Room", "ex"], ["نگهبان فرمان‌گرفته", "Commanded Guardian", "cb"], ["برج جاذبه", "Gravity Tower", "pf"],
+        ["سه نگهبان", "Three Guardians", "cb"], ["پیام سازنده", "Builder's Message", "ex"], ["انتخاب دروازه", "Choosing the Gate", "pz"], ["هجوم نهایی", "Final Onslaught", "df"],
+        ["مسیر مرکز", "Path to the Core", "pz"], ["خاموش‌کردن سپر", "Shutting Down the Shield", "pz"], ["آخرین دروازه", "The Last Gate", "pz"], ["باس هسته مرکزی", "Boss: Central Core", "bs"] ] }
+];
+// ===== دسترسی به داده‌ی مرحله (شماره‌ی سراسری ۱ تا ۱۶۰) =====
+function storyChapterOf(n) { return Math.ceil(n / STORY_CHAPTER_SIZE); }
+function storyInfo(n) {
+    n = Math.floor(n); if (!(n >= 1 && n <= STORY_LEVEL_COUNT)) return null;
+    const ch = storyChapterOf(n), idx = (n - 1) % STORY_CHAPTER_SIZE, C = STORY_CHAPTERS[ch - 1], row = C.lv[idx];
+    const boss = row[2] === "bs" && idx === STORY_CHAPTER_SIZE - 1;            // فقط مرحله‌ی ۲۰ام هر فصل «باس فصل» است (مرحله‌ی ۱۲۵ مینی‌باس است)
+    return { n, ch, idx: idx + 1, fa: row[0], en: row[1], kind: row[2], boss, miniBoss: row[2] === "bs" && !boss, env: C.env, suit: C.suit, accent: C.accent,
+        id: "L" + n, reward: storyReward(n, row[2], boss) };
+}
+function storyReward(n, kind, boss) { const ch = storyChapterOf(n); return (20 + ch * 5) * (boss ? 4 : kind === "bs" ? 2 : 1); } // پاداش سکه؛ مقدار نهایی در فاز محتوا تنظیم می‌شود
+function storyEventId(n, phase) { return "ev" + n + "_" + phase; }              // phase: start | mid | end → شناسه‌ی یکتا برای اجرای «فقط یک‌بار»
+function storyName(n) { const i = storyInfo(n); return i ? (lang === "fa" ? i.fa : i.en) : ""; }
+function storyChapterName(ch) { const C = STORY_CHAPTERS[ch - 1]; return C ? (lang === "fa" ? C.fa : C.en) : ""; }
+// ===== وضعیت پیشرفت داستان (در ذخیره‌ی نسخه‌ی ۲) =====
+const SAVE_SCHEMA = 2;
+let STORY = { schema: 2, unlockedMax: 1, stars: {}, done: {}, events: {}, rewards: {}, arcDone: false };
+function storyUnlocked(n) { return n >= 1 && n <= STORY_LEVEL_COUNT && n <= STORY.unlockedMax; }
+function storyChapterDone(ch) { return !!STORY.done[ch * STORY_CHAPTER_SIZE]; }
+function storyChapterOpen(ch) { return ch === 1 || storyChapterDone(ch - 1); }
+function storyEventOnce(id) { if (STORY.events[id]) return false; STORY.events[id] = 1; saveGame(); return true; }  // true فقط بار اول
+function storyClaimReward(n) { const i = storyInfo(n); if (!i || STORY.rewards[i.id]) return 0; STORY.rewards[i.id] = 1; saveGame(); return i.reward; } // پاداش هر مرحله فقط یک‌بار
+function storyComplete(n, stars) {
+    const i = storyInfo(n); if (!i) return;
+    STORY.done[n] = 1; STORY.stars[n] = Math.max(STORY.stars[n] || 0, stars || 0);
+    if (n < STORY_LEVEL_COUNT) STORY.unlockedMax = Math.max(STORY.unlockedMax, n + 1);
+    else STORY.arcDone = true;                                                   // پایان آرک؛ بازی بسته نمی‌شود و فصل‌های بعدی می‌توانند اضافه شوند
+    saveGame();
+}
+function storyNextTarget() { return STORY.arcDone ? { n: STORY_LEVEL_COUNT, cont: true } : { n: Math.min(STORY.unlockedMax, STORY_LEVEL_COUNT), cont: false }; }
+// ===== لایه‌ی سازگاری با مراحل/فصل‌های قدیمی (تابستان، پاییز، …): داده نگه داشته می‌شود، ولی «داستان فعال» نیست =====
+function legacyProgress() { let done = 0; const U = [levelUnlocked1, levelUnlocked2, levelUnlocked3, levelUnlocked4, levelUnlocked5, levelUnlocked6]; U.forEach((u) => { if (u && u.done25) done++; }); return { seasonsDone: done }; }
+function restoreLegacyBackup() { try { const b = localStorage.getItem("advGame3_backup_v1"); if (!b) return false; localStorage.setItem("advGame3", b); return true; } catch (e) { return false; } }
+
+// ===================== موتور داستان و صحنه‌های سینمایی (فاز ۲) =====================
+// فقط وقتی SE.on باشد فعال است؛ مراحل فعلی بازی را تغییر نمی‌دهد. اجزا: ۱) رویداد سینمایی با شرط شروع/پایان، قابل‌رد، با بازگشت کنترل
+// ۲) پیام کوتاه ۳) اشیای تعاملی (قطعه، دستگاه، دروازه، معمای ترتیبی) ۴) هدف مرحله ۵) باس چندفازی ۶) پاک‌سازی کامل بین مراحل
+const SE = {};
+function seReset() {
+    if (SE.dev && SE.arrowsBackup !== undefined) persistentArrows = SE.arrowsBackup;       // مرحله‌ی آزمایشی نباید تیرهای ذخیره‌شده‌ی بازیکن را عوض کند
+    Object.assign(SE, { on: false, dev: false, arrows: false, lock: false, ev: null, queue: [], trig: [], timers: [], msgQ: [], msg: null, objs: [],
+        goal: null, inv: { parts: 0, keys: 0, devices: 0 }, seq: {}, seqDone: {}, shake: 0, flash: 0, flashMax: 1, flashColor: "#fff", bar: 0, safe: 0,
+        boss: null, bossDone: false, haz: [], hint: { t: 0, fa: "", en: "", cd: 0 }, skipRect: { x: 0, y: 0, w: 0, h: 0 }, arrowsBackup: undefined, winFn: null, accent: "#4FC3F7" });
+}
+seReset();
+const SE_MAX_LOCK = 420;                                    // سقف قفل کنترل برای هر صحنه (۷ ثانیه)؛ بیشتر از این خودکار آزاد می‌شود
+function seBegin(o) { seReset(); SE.on = true; SE.dev = !!(o && o.dev); SE.arrows = !!(o && o.arrows); SE.accent = (o && o.accent) || SE.accent; SE.winFn = (o && o.winFn) || null; }
+function seAfter(frames, fn) { SE.timers.push({ t: Math.max(1, frames | 0), fn }); }
+function seShake(n) { SE.shake = Math.max(SE.shake, n); }
+function seFlash(color, frames) { SE.flashColor = color || "#fff"; SE.flash = SE.flashMax = frames || 18; }
+function seHint(fa, en, frames) { SE.hint.fa = fa; SE.hint.en = en; SE.hint.t = frames || 150; }
+// پیام کوتاه: '|' متن بلند را به چند پیام می‌شکند؛ هر پیام حداقل ~۲ ثانیه می‌ماند؛ در حین پیام مهم، بازیکن چند لحظه آسیب‌ناپذیر است
+function seSay(fa, en, o) {
+    const A = String(fa || "").split("|"), B = String(en || fa || "").split("|");
+    for (let i = 0; i < Math.max(A.length, B.length); i++) {
+        const a = A[i] || B[i] || "", b = B[i] || a, len = Math.max((o && o.frames) || 0, 110 + 3 * Math.max(a.length, b.length));
+        SE.msgQ.push({ fa: a, en: b, len, t: 0, safe: !(o && o.safe === false) });
+    }
+}
+// ===== رویداد سینمایی =====
+// def: { id, once(پیش‌فرض true)، len، lock(پیش‌فرض true)، skippable(پیش‌فرض true)، maxLock، steps:[{at,fn,vis}]، onStart، onEnd، draw(t,len)، endWhen() }
+// vis:true یعنی فقط جلوه‌ی دیداری است و هنگام «رد کردن» اجرا نمی‌شود؛ بقیه‌ی گام‌ها (تغییر واقعی دنیا) همیشه اجرا می‌شوند.
+function seEvent(def) {
+    if (def.once !== false && !SE.dev && !storyEventOnce(def.id)) return false;         // رویداد «فقط یک‌بار»
+    SE.queue.push(def); return true;
+}
+function seTrigger(def) { SE.trig.push({ def, fired: false }); }                       // def.when() = شرط شروع
+function seStartEvent(def) {
+    SE.ev = { def, t: 0, i: 0 }; SE.lock = def.lock !== false;
+    if (def.steps) def.steps.sort((a, b) => a.at - b.at);
+    try { if (def.onStart) def.onStart(); } catch (e) { }
+}
+function seEndEvent(skipped) {
+    const E = SE.ev; if (!E) return;
+    const d = E.def;
+    if (skipped && d.steps) for (; E.i < d.steps.length; E.i++) { const s = d.steps[E.i]; if (!s.vis) { try { s.fn(true); } catch (e) { } } }
+    SE.ev = null; SE.lock = false; SE.flash = skipped ? 0 : SE.flash; SE.shake = skipped ? 0 : SE.shake;
+    try { if (d.onEnd) d.onEnd(!!skipped); } catch (e) { }
+    if (typeof applyDirKeys === "function") applyDirKeys();                            // کنترل بازیکن دقیقاً مطابق انگشت‌های فعلی برمی‌گردد
+}
+function seSkip() { const E = SE.ev; if (E && E.def.skippable !== false && E.t > 12) { seEndEvent(true); return true; } return false; }
+function seTapSkip(p) { if (SE.ev && SE.skipRect.w && pointInRect(p.x, p.y, SE.skipRect)) return seSkip(); return false; }
+function seStepEvent() {
+    const E = SE.ev, d = E.def; E.t++;
+    while (d.steps && E.i < d.steps.length && d.steps[E.i].at <= E.t) { const s = d.steps[E.i++]; try { s.fn(false); } catch (e) { } }
+    const lim = d.maxLock || SE_MAX_LOCK;
+    if ((d.len != null && E.t >= d.len && E.i >= (d.steps ? d.steps.length : 0)) || (d.endWhen && d.endWhen()) || (SE.lock && E.t > lim)) seEndEvent(false);
+}
+// ===== اشیای تعاملی =====
+function seNeedsOk(n) { if (!n) return true; if (typeof n === "function") return !!n(); for (const k in n) if ((SE.inv[k] || 0) < n[k]) return false; return true; }
+function seAddPart(x, h, o) { SE.objs.push(Object.assign({ t: "part", x, h: h || 40, got: false, inv: "parts" }, o)); }
+function seAddDevice(x, o) { SE.objs.push(Object.assign({ t: "dev", x, hold: 40, prog: 0, done: false, hintCd: 0 }, o)); }
+function seAddGate(x, o) { SE.objs.push(Object.assign({ t: "gate", x, open: false, openT: 0 }, o)); }
+function seGoal(fa, en, have, need) { SE.goal = { fa, en, have: have || (() => 0), need: need || 1 }; }
+function seGoalMet() { return !SE.goal || SE.goal.have() >= SE.goal.need; }
+function seUpdateObjs() {
+    const px = player.worldX, py = player.y + player.height / 2;
+    for (const o of SE.objs) {
+        if (o.t === "part") {
+            if (o.got) continue;
+            const oy = baseGroundHeightAt(o.x) - o.h;
+            if (Math.abs(px - o.x) < 26 && Math.abs(py - oy) < 40) { o.got = true; burst(o.x, oy, { n: 10, colors: [SE.accent, "#fff"], spd: 2.6, size: 2.6 }); sfx("coin"); floatTexts.push({ x: o.x, y: oy - 20, txt: o.label || "+1", color: SE.accent, life: 0 }); if (o.onGet) o.onGet(o); }
+        } else if (o.t === "dev") {
+            if (o.done) continue;
+            if (o.hintCd > 0) o.hintCd--;
+            const near = Math.abs(px - o.x) < 46 && Math.abs(py - (baseGroundHeightAt(o.x) - 30)) < 64;
+            if (near && seNeedsOk(o.needs)) {
+                if (++o.prog >= o.hold) seDeviceDone(o);
+            } else {
+                if (near && o.hintCd <= 0 && o.needsHint) { seHint(o.needsHint[0], o.needsHint[1], 140); o.hintCd = 260; }
+                o.prog = Math.max(0, o.prog - 2);
+            }
+        } else if (o.t === "gate") {
+            if (!o.open && seNeedsOk(o.needs)) { o.open = true; o.openT = 0; sfx("win"); seShake(5); if (o.onOpen) o.onOpen(o); }
+            if (o.open && o.openT < 45) o.openT++;
+        }
+    }
+    let p = 0, d = 0, k = 0;
+    for (const o of SE.objs) { if (o.t === "part" && o.got) { if (o.inv === "keys") k++; else p++; } else if (o.t === "dev" && o.done) d++; }
+    SE.inv.parts = p; SE.inv.keys = k; SE.inv.devices = d;
+}
+function seDeviceDone(o) {
+    o.done = true; o.lit = true; o.prog = o.hold;
+    if (o.seq) {                                                                         // معمای ترتیبی: ترتیب غلط = ریست با بازخورد روشن، نه حدس تصادفی
+        const g = o.seq.g, want = SE.seq[g] || 1;
+        if (o.seq.k !== want) {
+            SE.objs.forEach((q) => { if (q.t === "dev" && q.seq && q.seq.g === g) { q.done = false; q.lit = false; q.prog = 0; } });
+            SE.seq[g] = 1; seFlash("#FF5252", 14); sfx("hit"); seHint(o.seq.wrongFa || "ترتیب درست نبود؛ دوباره از شماره‌ی ۱", o.seq.wrongEn || "Wrong order — start again from 1", 150);
+            return;
+        }
+        SE.seq[g] = want + 1;
+        const total = SE.objs.filter((q) => q.t === "dev" && q.seq && q.seq.g === g).length;
+        if (want === total) { SE.seqDone[g] = true; if (o.seq.onSeqDone) o.seq.onSeqDone(); }
+    }
+    burst(o.x, baseGroundHeightAt(o.x) - 30, { n: 16, colors: [SE.accent, "#fff", "#FFD54F"], spd: 3, size: 2.8 }); sfx("win"); seShake(3);
+    if (o.onDone) o.onDone(o);
+}
+// ===== باس چندفازی =====
+// def: { x, w, h, hp, arena:[minX,maxX], name:{fa,en}, phases:[{from,color,patterns:[{tell,act,rest,warn(b),run(b,f)}],onEnter(b)}], draw(b), onDefeat(b) }
+function seBossSpawn(def) {
+    const b = Object.assign({ w: 90, h: 120, arena: null, st: "enter", t: 0, ph: 0, pi: 0, vulnerable: false, flash: 0, gone: false, hitCount: 0, defT: 0 }, def);
+    b.maxHp = b.hp; b.name = def.name || { fa: "نگهبان", en: "Guardian" }; SE.boss = b; SE.bossDone = false; return b;
+}
+function seBossGround(b) { return baseGroundHeightAt(b.x); }
+function seBossBox(b) { const g = seBossGround(b); return { x0: b.x - b.w / 2, x1: b.x + b.w / 2, y0: g - b.h, y1: g }; }
+function seAddHaz(h) { SE.haz.push(Object.assign({ x: 0, y: 0, w: 30, h: 30, vx: 0, vy: 0, tell: 0, life: 60, kind: "orb", color: "#FF7043", t: 0 }, h)); }
+function seBossUpdate() {
+    const b = SE.boss; if (!b || b.gone) return;
+    const ph = b.phases[b.ph]; b.t++; if (b.flash > 0) b.flash--;
+    b.vulnerable = false;
+    if (b.st === "enter") { if (b.t >= 90) { b.st = "idle"; b.t = 0; } }
+    else if (b.st === "idle") { if (b.t >= 40) { b.st = "tell"; b.t = 0; b.pat = ph.patterns[b.pi++ % ph.patterns.length]; try { b.pat.warn && b.pat.warn(b); } catch (e) { } } }
+    else if (b.st === "tell") { if (b.t >= b.pat.tell) { b.st = "act"; b.t = 0; } }
+    else if (b.st === "act") { try { b.pat.run && b.pat.run(b, b.t); } catch (e) { } if (b.t >= b.pat.act) { b.st = "rest"; b.t = 0; } }
+    else if (b.st === "rest") { b.vulnerable = true; if (b.t >= b.pat.rest) { b.st = "idle"; b.t = 0; } }                  // نقطه‌ضعف فقط در پنجره‌ی استراحت آشکار و آسیب‌پذیر است
+    else if (b.st === "phase") { if (b.t >= 110) { b.st = "idle"; b.t = -45; } }                                         // بعد از تغییر فاز، فرصت کوتاه برای فهمیدن الگوی جدید
+    else if (b.st === "defeat") {
+        b.defT++;
+        if (b.defT % 5 === 0) burst(b.x + (Math.random() - 0.5) * b.w, seBossGround(b) - Math.random() * b.h, { n: 4, colors: [b.color || "#fff", "#fff", "#FFD54F"], spd: 2.4, size: 2.6 });
+        if (b.defT % 24 === 0) seShake(5);
+        if (b.defT >= 170) { b.gone = true; SE.bossDone = true; SE.haz = []; seFlash("#fff", 22); sfx("bossDefeat"); try { b.onDefeat && b.onDefeat(b); } catch (e) { } }
+        return;
+    }
+    // آسیب تیر: فقط وقتی آسیب‌پذیر است؛ در غیر این صورت تیر با جلوه‌ی برخورد با سپر مصرف می‌شود
+    const bx = seBossBox(b);
+    for (const a of arrows) {
+        if (a.hit || a.x < bx.x0 - 8 || a.x > bx.x1 + 8 || a.y < bx.y0 - 10 || a.y > bx.y1 + 10) continue;
+        a.hit = true;
+        if (b.vulnerable) {
+            b.hp--; b.flash = 7; b.hitCount++; sfx("hit"); burst(a.x, a.y, { n: 8, colors: ["#FFD54F", "#fff"], spd: 3, size: 2.6 });
+            if (b.hp <= 0) { b.st = "defeat"; b.defT = 0; b.hp = 0; SE.haz = []; seShake(9); seFlash("#fff", 12); break; }
+            const frac = b.hp / b.maxHp, nxt = b.phases[b.ph + 1];
+            if (nxt && frac <= nxt.from) { b.ph++; b.st = "phase"; b.t = 0; b.pi = 0; SE.haz = []; seShake(10); seFlash("#fff", 16); sfx("bossDefeat"); try { nxt.onEnter && nxt.onEnter(b); } catch (e) { } }
+        } else { burst(a.x, a.y, { n: 5, colors: [SE.accent, "#fff"], spd: 2, size: 2 }); sfx("click"); }
+    }
+    // برخورد بدنه فقط وقتی الگو صراحتاً اجازه بدهد (b.contact)
+    if (b.contact && b.st === "act" && Math.abs(player.worldX - b.x) < b.w / 2 + 10 && invulnFrames <= 0) loseLife();
+}
+function seHazUpdate() {
+    for (let i = SE.haz.length - 1; i >= 0; i--) {
+        const h = SE.haz[i]; h.t++;
+        if (h.t > h.tell) { h.x += h.vx; h.y += h.vy; }
+        if (h.t > h.tell + h.life) { SE.haz.splice(i, 1); continue; }
+        if (h.t > h.tell && invulnFrames <= 0 && !deadFlag) {                                  // نشانه‌ی هشدار (tell) آسیب نمی‌زند؛ فقط فاز فعال
+            const pxl = player.worldX - player.width / 2, pxr = player.worldX + player.width / 2, pt = player.y, pb = player.y + player.height;
+            const hx0 = h.x - h.w / 2, hx1 = h.x + h.w / 2, hy0 = h.y - (h.col ? 0 : h.h / 2), hy1 = h.y + (h.col ? h.h : h.h / 2);
+            if (pxr > hx0 && pxl < hx1 && pb > hy0 && pt < hy1) loseLife();
+        }
+    }
+}
+// ===== به‌روزرسانی اصلی (قبل از فیزیک بازیکن) و دیرهنگام (بعد از فیزیک: دیوارهای دروازه و محدوده‌ی میدان باس) =====
+function seUpdate() {
+    for (const tr of SE.trig) if (!tr.fired) { let ok = false; try { ok = tr.def.when(); } catch (e) { } if (ok) { tr.fired = true; seEvent(tr.def); } }
+    for (let i = SE.timers.length - 1; i >= 0; i--) { const tm = SE.timers[i]; if (--tm.t <= 0) { SE.timers.splice(i, 1); try { tm.fn(); } catch (e) { } } }
+    if (!SE.ev && SE.queue.length) seStartEvent(SE.queue.shift());
+    if (SE.ev) seStepEvent();
+    if (SE.lock) { keys.left = false; keys.right = false; invulnFrames = Math.max(invulnFrames, 2); if (!inEndlessRun) levelTimeLeft++; }   // صحنه: کنترل بسته، آسیب‌ناپذیر، تایمر مرحله نمی‌سوزد
+    if (SE.safe > 0) { SE.safe--; invulnFrames = Math.max(invulnFrames, 2); }
+    if (SE.msg || SE.msgQ.length) {
+        if (!SE.msg) SE.msg = SE.msgQ.shift();
+        if (SE.msg.safe) invulnFrames = Math.max(invulnFrames, 2);
+        if (++SE.msg.t >= SE.msg.len) SE.msg = null;
+    }
+    if (SE.hint.t > 0) SE.hint.t--;
+    seUpdateObjs(); seBossUpdate(); seHazUpdate();
+    SE.bar += ((SE.lock ? 1 : 0) - SE.bar) * 0.15;
+}
+function seLate() {
+    const b = SE.boss;
+    if (b && !b.gone && b.arena) player.worldX = clamp(player.worldX, b.arena[0], b.arena[1]);
+    for (const o of SE.objs) if (o.t === "gate" && !o.open && player.worldX > o.x - 14 && player.worldX < o.x + 60) player.worldX = o.x - 14;
+}
+function seHintGoal() { if (SE.hint.cd > 0) { SE.hint.cd--; return; } if (SE.goal) { seHint("هنوز کامل نشده: " + SE.goal.fa, "Not done yet: " + SE.goal.en, 150); SE.hint.cd = 200; } }
+function seFinishLevel() { if (SE.dev) { gameState = "win"; sfx("win"); } else if (SE.winFn) SE.winFn(); else { triggerWin(); gameState = "win"; sfx("win"); } }
+// ===== رسم دنیا (بین زمین و بازیکن) =====
+function seDrawWorld() {
+    const W = canvas.width, cO = player.worldX - screenX, vL = cO - 80, vR = cO + W + 80, f = globalFrame, ac = SE.accent;
+    ctx.save(); ctx.translate(-cO, -camY);
+    for (const o of SE.objs) {
+        if (o.x < vL || o.x > vR) continue;
+        const g = baseGroundHeightAt(o.x);
+        if (o.t === "part") {
+            if (o.got) continue;
+            const y = g - o.h + Math.sin(f * 0.08 + o.x) * 4, r = 9;
+            ctx.globalAlpha = 0.25 + 0.12 * Math.sin(f * 0.1 + o.x); ctx.fillStyle = ac; ctx.beginPath(); ctx.arc(o.x, y, r * 2, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+            ctx.fillStyle = o.inv === "keys" ? "#FFD54F" : ac; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(o.x, y - r); ctx.lineTo(o.x + r, y); ctx.lineTo(o.x, y + r); ctx.lineTo(o.x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        } else if (o.t === "dev") {
+            ctx.fillStyle = "#263238"; ctx.fillRect(o.x - 17, g - 42, 34, 42); ctx.strokeStyle = "#455A64"; ctx.lineWidth = 2; ctx.strokeRect(o.x - 17, g - 42, 34, 42);
+            ctx.fillStyle = o.lit ? ac : (o.prog > 0 ? "#FFD54F" : "#37474F"); ctx.globalAlpha = o.lit ? 0.5 + 0.5 * Math.abs(Math.sin(f * 0.1)) : 1; ctx.fillRect(o.x - 11, g - 36, 22, 16); ctx.globalAlpha = 1;
+            ctx.fillStyle = "#90A4AE"; ctx.fillRect(o.x - 3, g - 60, 6, 18); ctx.fillStyle = o.lit ? ac : "#546E7A"; ctx.beginPath(); ctx.arc(o.x, g - 62, 5, 0, 6.2832); ctx.fill();
+            if (o.seq) { ctx.fillStyle = "#fff"; ctx.font = F(14, 900); ctx.textAlign = "center"; ctx.fillText(String(o.seq.k), o.x, g - 74); ctx.textAlign = "start"; }
+            if (!o.done && o.prog > 0) { ctx.strokeStyle = "#FFD54F"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(o.x, g - 30, 30, -1.5708, -1.5708 + 6.2832 * (o.prog / o.hold)); ctx.stroke(); }
+        } else if (o.t === "gate") {
+            const sp = o.openT * 0.6, H = 140;
+            ctx.fillStyle = "#37474F"; ctx.fillRect(o.x - 18 - sp, g - H, 8, H); ctx.fillRect(o.x + 10 + sp, g - H, 8, H);
+            ctx.fillStyle = o.open ? ac : "#FF7043"; ctx.fillRect(o.x - 20 - sp, g - H - 6, 12, 6); ctx.fillRect(o.x + 8 + sp, g - H - 6, 12, 6);
+            if (!o.open || o.openT < 45) {
+                ctx.globalAlpha = (o.open ? 0.5 * (1 - o.openT / 45) : 0.28 + 0.1 * Math.sin(f * 0.15)); ctx.fillStyle = o.open ? ac : "#FF7043"; ctx.fillRect(o.x - 10, g - H, 20, H);
+                ctx.globalAlpha = 0.6; ctx.fillStyle = "#fff"; ctx.fillRect(o.x - 10, g - H + ((f * 2) % H), 20, 2); ctx.globalAlpha = 1;
+            }
+        }
+    }
+    // خطرها: ابتدا نشانه‌ی هشدار (چشمک‌زن)، بعد فاز فعال
+    for (const h of SE.haz) {
+        if (h.x < vL - 100 || h.x > vR + 100) continue;
+        const g = baseGroundHeightAt(h.x);
+        if (h.t <= h.tell) {
+            const a = 0.25 + 0.35 * Math.abs(Math.sin(h.t * 0.28)); ctx.globalAlpha = a; ctx.fillStyle = "#FFEB3B";
+            if (h.col) ctx.fillRect(h.x - h.w / 2, g - 6, h.w, 6); else ctx.fillRect(h.x - h.w / 2, h.y - 3, h.w, 6);
+            ctx.globalAlpha = a * 0.5; ctx.strokeStyle = "#FF5252"; ctx.lineWidth = 2; if (h.col) ctx.strokeRect(h.x - h.w / 2, g - h.h, h.w, h.h); ctx.globalAlpha = 1;
+        } else {
+            ctx.fillStyle = h.color;
+            if (h.col) { ctx.globalAlpha = 0.85; ctx.fillRect(h.x - h.w / 2, h.y, h.w, h.h); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(h.x - 3, h.y, 6, h.h); }
+            else { ctx.beginPath(); ctx.arc(h.x, h.y, h.w / 2, 0, 6.2832); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(h.x, h.y, h.w / 5, 0, 6.2832); ctx.fill(); }
+        }
+    }
+    const b = SE.boss; if (b && !b.gone) { if (b.draw) b.draw(b); else seBossDrawDefault(b); }
+    ctx.restore();
+}
+function seBossDrawDefault(b) {
+    const g = seBossGround(b), f = globalFrame, sink = b.st === "defeat" ? Math.min(40, b.defT * 0.3) : 0, jit = b.st === "defeat" ? (Math.random() - 0.5) * 5 : 0;
+    const col = b.phases[b.ph].color || "#5C6BC0", x = b.x + jit, top = g - b.h + sink + (b.st === "enter" ? Math.max(0, 70 - b.t) : 0);
+    ctx.save();
+    if (b.st === "defeat") ctx.globalAlpha = Math.max(0.15, 1 - b.defT / 190) * (b.defT % 8 < 4 ? 1 : 0.6);
+    if (b.st === "enter") ctx.globalAlpha = Math.min(1, b.t / 40);
+    if (b.st === "tell") { ctx.globalAlpha = 0.35 * Math.abs(Math.sin(b.t * 0.3)); ctx.fillStyle = "#FF5252"; ctx.beginPath(); ctx.arc(x, g - b.h / 2, b.w * 0.9, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = b.flash > 0 ? "#fff" : col; ctx.fillRect(x - b.w / 2, top, b.w, b.h - sink);
+    ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(x - b.w / 2, top + b.h * 0.55, b.w, 6);
+    const ex = player.worldX >= b.x ? 6 : -6; ctx.fillStyle = "#FFEB3B"; ctx.fillRect(x - 20 + ex * 0.3, top + 18, 12, 8); ctx.fillRect(x + 8 + ex * 0.3, top + 18, 12, 8);
+    if (b.st === "tell") { ctx.fillStyle = col; ctx.fillRect(x - b.w / 2 - 14, top + 6, 14, 40); ctx.fillRect(x + b.w / 2, top + 6, 14, 40); }                   // پوزِ آماده‌سازی حمله: دست‌های بالا
+    const cx = x, cy = top + b.h * 0.58, vul = b.vulnerable;
+    ctx.fillStyle = vul ? "#FFF59D" : "#455A64"; ctx.beginPath(); ctx.arc(cx, cy, vul ? 13 + 2 * Math.sin(f * 0.3) : 9, 0, 6.2832); ctx.fill();                  // هسته: فقط در پنجره‌ی آسیب‌پذیری می‌درخشد
+    if (!vul && b.st !== "defeat") { ctx.globalAlpha = 0.45; ctx.strokeStyle = SE.accent; ctx.lineWidth = 3; ctx.strokeRect(x - b.w / 2 - 5, top - 5, b.w + 10, b.h - sink + 10); }  // سپر
+    ctx.restore();
+}
+// ===== رسم HUD/روکش (بعد از کنترل‌ها) =====
+function seDrawHUD() {
+    const W = canvas.width, H = canvas.height, fa = lang === "fa";
+    ctx.save(); ctx.textAlign = "center";
+    if (SE.bar > 0.02) { const bh = 34 * SE.bar; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); }                              // نوار سینمایی
+    if (SE.ev && SE.ev.def.draw) { try { SE.ev.def.draw(SE.ev.t, SE.ev.def.len || 1); } catch (e) { } }
+    if (SE.goal && !SE.lock) {                                                                                                                                     // چیپ هدف مرحله
+        const n = SE.goal.need, hv = Math.min(SE.goal.have(), n), txt = (fa ? SE.goal.fa : SE.goal.en) + (n > 1 ? "  " + hv + "/" + n : (hv >= n ? "  ✓" : ""));
+        ctx.font = F(13, 700); const w = Math.min(320, ctx.measureText(txt).width + 26), x = W / 2 - w / 2;
+        ctx.fillStyle = "rgba(0,0,0,0.5)"; roundRect(x, 42, w, 24, 12); ctx.fill(); ctx.fillStyle = hv >= n ? "#69F0AE" : "#fff"; ctx.fillText(txt, W / 2, 59);
+    }
+    const b = SE.boss;
+    if (b && !b.gone && b.st !== "enter") {                                                                                                                         // نوار جان باس با تیک فازها
+        const bw = Math.min(260, W - 360), bx = W / 2 - bw / 2, by = 74;
+        ctx.fillStyle = "rgba(0,0,0,0.55)"; roundRect(bx - 4, by - 16, bw + 8, 28, 8); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.font = F(11, 900); ctx.fillText(fa ? b.name.fa : b.name.en, W / 2, by - 5);
+        ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillRect(bx, by, bw, 7); ctx.fillStyle = b.phases[b.ph].color || "#FF5252"; ctx.fillRect(bx, by, bw * Math.max(0, b.hp / b.maxHp), 7);
+        ctx.fillStyle = "#fff"; for (let i = 1; i < b.phases.length; i++) ctx.fillRect(bx + bw * b.phases[i].from - 1, by - 1, 2, 9);
+    }
+    const m = SE.msg;                                                                                                                                                // پیام کوتاه، وسط پایین (دکمه‌های لمسی کنار صفحه آزادند)
+    if (m) {
+        const a = Math.min(1, m.t / 10, (m.len - m.t) / 10), txt = fa ? m.fa : m.en, bw = Math.min(440, W - 360);
+        ctx.globalAlpha = Math.max(0, a); ctx.font = F(16, 700);
+        const words = txt.split(" "), lines = []; let cur = "";
+        words.forEach((w) => { const t2 = cur ? cur + " " + w : w; if (ctx.measureText(t2).width > bw - 28 && cur) { lines.push(cur); cur = w; } else cur = t2; }); if (cur) lines.push(cur);
+        const bh = 20 + lines.length * 22, by = H - 98 - bh + (SE.lock ? -30 : 0);
+        ctx.fillStyle = "rgba(10,18,30,0.78)"; roundRect(W / 2 - bw / 2, by, bw, bh, 12); ctx.fill(); ctx.strokeStyle = SE.accent; ctx.lineWidth = 2; roundRect(W / 2 - bw / 2, by, bw, bh, 12); ctx.stroke();
+        ctx.fillStyle = "#fff"; lines.forEach((l, i) => ctx.fillText(l, W / 2, by + 26 + i * 22)); ctx.globalAlpha = 1;
+    }
+    if (SE.hint.t > 0) { ctx.font = F(14, 700); const txt = fa ? SE.hint.fa : SE.hint.en, w = Math.min(W - 340, ctx.measureText(txt).width + 28); ctx.globalAlpha = Math.min(1, SE.hint.t / 12); ctx.fillStyle = "rgba(0,0,0,0.6)"; roundRect(W / 2 - w / 2, 100, w, 28, 14); ctx.fill(); ctx.fillStyle = "#FFE082"; ctx.fillText(txt, W / 2, 119); ctx.globalAlpha = 1; }
+    SE.skipRect = { x: 0, y: 0, w: 0, h: 0 };
+    if (SE.ev && SE.ev.def.skippable !== false && SE.ev.t > 12) {                                                                                                 // «رد کردن» همیشه وسط پایین، دور از دکمه‌های کنترل
+        SE.skipRect = rect(W / 2 - 52, H - 50, 104, 32);
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; roundRect(SE.skipRect.x, SE.skipRect.y, 104, 32, 16); ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5; roundRect(SE.skipRect.x, SE.skipRect.y, 104, 32, 16); ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.font = F(13, 700); ctx.fillText(fa ? "رد کردن ⏭" : "Skip ⏭", W / 2, H - 29);
+    }
+    if (SE.flash > 0) { ctx.globalAlpha = Math.min(1, SE.flash / SE.flashMax) * 0.85; ctx.fillStyle = SE.flashColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; SE.flash--; }
+    ctx.restore(); ctx.textAlign = "start";
+}
+// ===== مرحله‌ی آزمایشی موتور (کد «9000» در صفحه‌ی کد مخفی) — برای تست دستی؛ پیشرفت و ذخیره‌ی واقعی را عوض نمی‌کند =====
+function seDevBossDef() {
+    const cols = (b, n, tell) => { for (let i = 0; i < n; i++) { const x = clamp(player.worldX + (i - (n - 1) / 2) * 110, b.arena[0] + 30, b.arena[1] - 30), g = baseGroundHeightAt(x); seAddHaz({ x, y: g - 260, w: 44, h: 260, col: true, tell, life: 36, kind: "bolt", color: "#FFEE58" }); } };
+    const orbs = (b, n, tell) => { const dir = player.worldX >= b.x ? 1 : -1; for (let i = 0; i < n; i++) seAddHaz({ x: b.x + dir * 50, y: baseGroundHeightAt(b.x) - 22, w: 26, h: 26, vx: dir * 3.4, tell: tell + i * 40, life: 150, color: "#FF7043" }); };
+    const sweep = (b, tell) => { const g0 = baseGroundHeightAt(b.arena[0]), g1 = baseGroundHeightAt(b.arena[1]); seAddHaz({ x: b.arena[0], y: g0 - 16, w: 30, h: 30, vx: 4.2, tell, life: 190, color: "#EF5350" }); seAddHaz({ x: b.arena[1], y: g1 - 16, w: 30, h: 30, vx: -4.2, tell: tell + 30, life: 190, color: "#EF5350" }); };
+    return { x: 3500, w: 90, h: 120, hp: 12, arena: [3000, 3900], name: { fa: "نگهبان آزمایشی", en: "Test Guardian" },
+        phases: [
+            { from: 1.0, color: "#5C6BC0", patterns: [{ tell: 70, act: 40, rest: 130, warn: (b) => cols(b, 3, 70) }, { tell: 60, act: 90, rest: 130, warn: (b) => orbs(b, 2, 60) }] },
+            { from: 0.66, color: "#AB47BC", patterns: [{ tell: 62, act: 40, rest: 115, warn: (b) => cols(b, 4, 62) }, { tell: 55, act: 120, rest: 115, warn: (b) => orbs(b, 3, 55) }] },
+            { from: 0.33, color: "#EF5350", patterns: [{ tell: 52, act: 40, rest: 100, warn: (b) => cols(b, 5, 52) }, { tell: 55, act: 150, rest: 100, warn: (b) => sweep(b, 55) }] }
+        ],
+        onDefeat: () => seEvent({ id: "dev_end", len: 150, steps: [
+            { at: 4, fn: () => seSay("هسته خاموش شد.|راه بسته نیست؛ برو سمت دروازه‌ی آخر.", "The core went dark.|The way is open — head for the last gate.") },
+            { at: 40, fn: () => seShake(6), vis: true }] }) };
+}
+function seDevStart() {
+    currentSeason = 1; initLevel(1);
+    seBegin({ dev: true, arrows: true, accent: "#4FC3F7" }); SE.arrowsBackup = persistentArrows;
+    [typeof enemies !== "undefined" && enemies, typeof coins !== "undefined" && coins, typeof stars !== "undefined" && stars, typeof blocks !== "undefined" && blocks, typeof pipes !== "undefined" && pipes, typeof chests !== "undefined" && chests, typeof traps !== "undefined" && traps].forEach((a) => { if (a) a.length = 0; });
+    LEVEL_LENGTH = 4300; currentPits = []; arrowsInLevel = 30; levelTimeLeft = 60 * 600; player.worldX = 100;
+    seGoal("شکست نگهبان", "Defeat the guardian", () => (SE.bossDone ? 1 : 0), 1);
+    seAddPart(520, 50); seAddPart(780, 95); seAddPart(1040, 40);
+    seAddDevice(1300, { needs: { parts: 3 }, needsHint: ["۳ قطعه لازم است", "Needs 3 parts"], onDone: () => seSay("دستگاه روشن شد.|دروازه باید باز شود.", "Device online.|The gate should open now.") });
+    seAddGate(1700, { needs: { devices: 1 }, onOpen: () => seEvent({ id: "dev_gate", len: 110, steps: [{ at: 4, fn: () => seShake(7), vis: true }, { at: 10, fn: () => seSay("دروازه باز شد!", "The gate is open!") }] }) });
+    seAddDevice(2150, { seq: { g: "bat", k: 1 } }); seAddDevice(2000, { seq: { g: "bat", k: 2, onSeqDone: () => seSay("ترتیب درست بود!", "Correct order!") } }); seAddDevice(2300, { seq: { g: "bat", k: 3 } });
+    seAddGate(2600, { needs: () => !!SE.seqDone.bat });
+    seAddGate(4000, { needs: () => SE.bossDone });
+    seTrigger({ id: "dev_start", when: () => true, len: 120, steps: [{ at: 8, fn: () => seSay("آزمایش موتور داستان.|قطعه‌ها را جمع کن و به دستگاه برس.", "Story engine test.|Collect the parts and reach the device.") }] });
+    seTrigger({ id: "dev_boss_intro", when: () => player.worldX > 3010, len: 170, steps: [
+        { at: 2, fn: () => { if (!SE.boss) seBossSpawn(seDevBossDef()); } },
+        { at: 12, fn: () => seShake(6), vis: true },
+        { at: 20, fn: () => seSay("نگهبان بیدار شد.|وقتی هسته می‌درخشد، با تیر بزنش.", "The guardian woke.|Shoot it while its core glows.") }] });
+    gameState = "playing";
+}
+// ===================== دنیای داستان: جایگزینی کامل فصل‌های قدیمی با ۸ فصل جدید (۱۶۰ مرحله) =====================
+// محیط، دشمن، مرحله، انتخاب فصل و پیشرفت همه از این بخش می‌آیند. فصل‌های قدیمی (بهار/تابستان/پاییز/زمستان/ماه/زهره) دیگر هیچ‌جا فعال نیستند.
+const STORY_TEXT = [
+    { open: ["یک سیگنال ناشناخته به مرکز رسیده.|برو و منبعش را پیدا کن.", "An unknown signal reached the center.|Go find its source."], end: ["بالاخره سیگنال را پیدا کردی؛|حالا نگذار آن‌ها متوجه شوند.", "You finally found the signal.|Now don't let them notice."] },
+    { open: ["سفینه روی ماهی می‌نشیند که روی هیچ نقشه‌ای نیست.|سامانه‌ی ارتباطی را فعال کن.", "The ship lands on a moon that is on no map.|Bring the comms online."], end: ["پایگاه سقوط نکرد؛|ما آن را از نقشه حذف کردیم.", "The base did not fall.|We erased it from the map."] },
+    { open: ["کمربند سیارک‌ها؛ مسیرها خودشان جابه‌جا می‌شوند.|روی سکوی تعمیراتی فرود بیا.", "The asteroid belt — the paths keep shifting.|Land on the repair platform."], end: ["نقشه‌ی مریخ فعال شد.|نقطه‌ای اضافه لحظه‌ای ظاهر شد و ناپدید شد.", "The Mars map is online.|An extra point flickered and vanished."] },
+    { open: ["خاک سرخ و شهری خاموش.|ببین چه بر سر مردمش آمده.", "Red soil and a silent city.|Find out what happened to its people."], end: ["دستور تخلیه صادر نشد؛|شهروندان منتقل شدند؛|مقصد نامشخص.", "No evacuation order was issued.|The citizens were relocated.|Destination: unknown."] },
+    { open: ["ایستگاهی که انگار آینده را ثبت می‌کرد.|راه هسته را پیدا کن.", "A station that seemed to record the future.|Find the way to its core."], end: ["نقشه‌ی هشت منطقه و نقاط ناشناخته‌ی بسیار نمایان شد.|اطلاعات برای تعیین اندازه‌ی شبکه کافی نیست.", "A map of eight regions and many unknown points appeared.|Not enough data to measure the network."] },
+    { open: ["نور ستاره‌ها اینجا خم می‌شود.|به مرزی رسیده‌ای که روی نقشه نیست.", "Starlight bends here.|You've reached a border that isn't on the map."], end: ["محدوده‌ی نقشه پایان یافته است؛|محدوده‌ی جهان مشخص نیست.", "The map's range has ended.|The range of the world is unknown."] },
+    { open: ["کریستال‌ها با نزدیک‌شدنت روشن می‌شوند.|آرشیو جهان‌های فراموش‌شده.", "Crystals light up as you approach.|The archive of forgotten worlds."], end: ["این آرشیو، آخرین آرشیو نیست.", "This archive is not the last archive."] },
+    { open: ["ابرها کنار می‌روند و شهری شناور پیدا می‌شود.|آخرین دروازه‌ها اینجاست.", "The clouds part to reveal a floating city.|The last gates are here."], end: ["شما شبکه را تعمیر نکردید؛|شما فقط نخستین لایه را باز کردید.", "You did not repair the network.|You only opened its first layer."] }
+];
+const STORY_SKY_KEYS = { lab: 1, belt: 1, mars: 1, station: 1, void: 1, cave: 1 };    // محیط‌هایی که آسمان/پس‌زمینه‌ی اختصاصی خودشان را دارند (ماه و زهره از رندر موجودِ «space» و «venus» استفاده می‌کنند)
+const STORY_ENV_KEY = { earth: "lab", moon: "space", asteroids: "belt", mars: "mars", station: "station", blackhole: "void", cave: "cave", venus: "venus" };
+let STORY_SKIN = false, STORY_ENV_NOW = "earth";
+const STORY_PAL = {
+    earth: { b: "#78909C", d: "#455A64", g: "#4FC3F7" }, moon: { b: "#B0BEC5", d: "#607D8B", g: "#80DEEA" }, asteroids: { b: "#8D6E63", d: "#5D4037", g: "#FFB74D" }, mars: { b: "#BF6B45", d: "#7A3B22", g: "#FFAB40" },
+    station: { b: "#80CBC4", d: "#37746F", g: "#69F0AE" }, blackhole: { b: "#7E57C2", d: "#311B92", g: "#E040FB" }, cave: { b: "#5C6BC0", d: "#283593", g: "#B388FF" }, venus: { b: "#D4A24C", d: "#8E5B1A", g: "#FF7043" }
+};
+const STORY_ENEMIES = {
+    earth: [["snailCount", 1], ["hedgehogCount", 0.5], ["hunterCount", 0.4]], moon: [["snailCount", 0.8], ["hedgehogCount", 0.7], ["alienCount", 0.5], ["ufoCount", 0.3]],
+    asteroids: [["ufoCount", 0.8], ["hedgehogCount", 0.5], ["slimeCount", 0.5]], mars: [["snailCount", 0.7], ["hunterCount", 0.6], ["lavaGolemCount", 0.25], ["hedgehogCount", 0.5]],
+    station: [["snailCount", 0.7], ["ufoCount", 0.6], ["hunterCount", 0.5]], blackhole: [["slimeCount", 0.5], ["ufoCount", 0.6], ["alienCount", 0.5]],
+    cave: [["slimeCount", 0.7], ["hedgehogCount", 0.6], ["lavaGolemCount", 0.3]], venus: [["ufoCount", 0.7], ["alienCount", 0.5], ["hunterCount", 0.5]]
+};
+const STORY_KIND_F = { ex: 0.7, pz: 0.5, cb: 1.5, pf: 0.45, df: 1.6, ch: 0.9, bs: 0.3 };
+function storyG(ch, i) { return (ch - 1) * STORY_CHAPTER_SIZE + i; }
+// ===== تولید تنظیمات هر مرحله از جدول داستان (طول، دشمن، چاله، بلوک، تیر…) با منحنی سختی ملایم؛ مراحل ۱ تا ۳ عمداً آسان و بلندند =====
+function storyCfg(n) {
+    const I = storyInfo(n), k = I.kind, ch = I.ch, d = (n - 1) / 159, cd = (I.idx - 1) / 19, dif = (0.28 + 0.72 * d) * (0.88 + 0.12 * cd);
+    const base = { story: true, storyN: n, env: I.env, suitOn: I.suit === 2, needSuit: false, lowGrav: I.env === "moon" || I.env === "asteroids" || I.env === "station" || I.env === "blackhole" || I.env === "venus" };
+    if (I.boss || I.miniBoss) {
+        return L(Object.assign(base, { length: 3800, storyBoss: true, miniBoss: !!I.miniBoss, arrowCount: 14, noStars: true, hasPits: false, snailCount: 3, hedgehogCount: 2, timeSec: 260 }));
+    }
+    const len = { ex: 9000 + d * 5000, pz: 7000 + d * 3000, cb: 8000 + d * 3000, pf: 9000 + d * 4000, df: 6500 + d * 1500, ch: 11000 + d * 3000 }[k] || 9000;
+    const c = Object.assign(base, { length: Math.round(len / 100) * 100, chaseRange: Math.round(170 + d * 80), chaseSpeed: +(0.95 + d * 0.5 + (k === "ch" ? 0.2 : 0)).toFixed(2) });
+    c.timeSec = clamp(Math.round(60 + c.length / 115), 120, 260);
+    const N0 = 5 + 16 * dif, kf = STORY_KIND_F[k] || 0.7, set = STORY_ENEMIES[I.env] || STORY_ENEMIES.earth;
+    set.forEach(([key, w]) => { c[key] = Math.max(0, Math.round(N0 * kf * w)); });
+    if (k === "pf") { c.hasPits = true; c.pitW = [Math.round(40 + d * 18), Math.round(68 + d * 30)]; c.pitG = [Math.round(380 - d * 100), Math.round(640 - d * 160)]; }
+    else if (k !== "pz" && n >= 6) { c.hasPits = true; c.pitW = [38, 62]; c.pitG = [800, 1300]; }
+    if (k === "pz" || k === "ex" || k === "pf") { c.hasBlocks = true; c.blockCount = 6 + Math.round(d * 8); c.extraBlocks = ch >= 3; }
+    if ((k === "pf" || k === "ex") && ch >= 2) c.pipeCount = 2 + Math.round(d * 4);
+    if (k === "cb" || k === "df") c.arrowCount = 6 + Math.round(d * 8); else if (k === "ch") c.arrowCount = 4;
+    if (n <= 3) {                                                                  // مراحل ۱ تا ۳: بلند ولی آسان؛ بدون دشمن قدرتمند و بدون فشار زمان
+        Object.keys(c).forEach((key) => { if (/Count$/.test(key) && key !== "arrowCount") c[key] = 0; });
+        c.storyEasy = true; c.length = [8000, 9000, 10000][n - 1]; c.timeSec = 240; c.hasBlocks = true; c.blockCount = 5; c.extraBlocks = false; c.pipeCount = 0;
+        if (n === 2) { c.hasPits = true; c.pitW = [35, 50]; c.pitG = [1400, 2000]; } else c.hasPits = false;
+        if (n === 3) c.snailCount = 3;
+    }
+    return L(c);
+}
+const STORY_LV_CACHE = {};
+function storyLevelsOf(ch) { ch = clamp(ch | 0, 1, STORY_CHAPTER_COUNT); if (!STORY_LV_CACHE[ch]) { const o = {}; for (let i = 1; i <= STORY_CHAPTER_SIZE; i++) o[i] = storyCfg(storyG(ch, i)); STORY_LV_CACHE[ch] = o; } return STORY_LV_CACHE[ch]; }
+// ===== شروع مرحله‌ی داستانی: موتور داستان، پیام ورود، صحنه‌ی آغاز فصل، باس =====
+function stCols(b, n, tell) { for (let i = 0; i < n; i++) { const x = clamp(player.worldX + (i - (n - 1) / 2) * 110, b.arena[0] + 30, b.arena[1] - 30), g = baseGroundHeightAt(x); seAddHaz({ x, y: g - 260, w: 44, h: 260, col: true, tell, life: 36, kind: "bolt", color: "#FFEE58" }); } }
+function stOrbs(b, n, tell) { const dir = player.worldX >= b.x ? 1 : -1; for (let i = 0; i < n; i++) seAddHaz({ x: b.x + dir * 50, y: baseGroundHeightAt(b.x) - 22, w: 26, h: 26, vx: dir * 3.4, tell: tell + i * 40, life: 150, color: "#FF7043" }); }
+function stSweep(b, tell) { const g0 = baseGroundHeightAt(b.arena[0]), g1 = baseGroundHeightAt(b.arena[1]); seAddHaz({ x: b.arena[0], y: g0 - 16, w: 30, h: 30, vx: 4.2, tell, life: 190, color: "#EF5350" }); seAddHaz({ x: b.arena[1], y: g1 - 16, w: 30, h: 30, vx: -4.2, tell: tell + 30, life: 190, color: "#EF5350" }); }
+function stRain(b, tell) { const gap = player.worldX; for (let x = b.arena[0] + 40; x < b.arena[1] - 20; x += 100) { if (Math.abs(x - gap) < 90) continue; const g = baseGroundHeightAt(x); seAddHaz({ x, y: g - 260, w: 40, h: 260, col: true, tell, life: 34, kind: "bolt", color: "#FFEE58" }); } }
+function storyBossDef(n) {
+    const I = storyInfo(n), ch = I.ch, T = Math.max(42, 72 - ch * 3), A = I.accent, mini = I.miniBoss, aMin = LEVEL_LENGTH - 1250, aMax = LEVEL_LENGTH - 300, rest = ch >= 5 ? [120, 105, 92] : [130, 115, 100];
+    const odd = ch % 2 === 1;
+    return { x: LEVEL_LENGTH - 650, w: 84 + ch * 2, h: 110 + ch * 3, hp: mini ? 8 : 10 + ch, arena: [aMin, aMax], name: { fa: I.fa, en: I.en },
+        phases: [
+            { from: 1.0, color: A, patterns: [{ tell: T, act: 40, rest: rest[0], warn: (b) => stCols(b, 3, T) }, odd ? { tell: T - 8, act: 90, rest: rest[0], warn: (b) => stOrbs(b, 2, T - 8) } : { tell: T - 6, act: 150, rest: rest[0], warn: (b) => stSweep(b, T - 6) }] },
+            { from: 0.66, color: blendC(A, "#AB47BC", 0.5), patterns: [{ tell: T - 8, act: 40, rest: rest[1], warn: (b) => stCols(b, 4, T - 8) }, odd ? { tell: T - 12, act: 120, rest: rest[1], warn: (b) => stOrbs(b, 3, T - 12) } : { tell: T - 10, act: 160, rest: rest[1], warn: (b) => stSweep(b, T - 10) }] },
+            { from: 0.33, color: "#EF5350", patterns: [{ tell: T - 14, act: 40, rest: rest[2], warn: (b) => stCols(b, 5, T - 14) }, ch >= 5 ? { tell: T - 10, act: 40, rest: rest[2], warn: (b) => stRain(b, T - 10) } : { tell: T - 12, act: 160, rest: rest[2], warn: (b) => stSweep(b, T - 12) }] }
+        ].slice(0, mini ? 2 : 3),
+        onDefeat: () => seEvent({ id: "L" + n + "_end", len: 230, steps: [
+            { at: 6, fn: () => { const T2 = STORY_TEXT[ch - 1].end; seSay(mini ? "قطعه‌ی کلیدی و تصویر یک شهر ناشناخته پیدا شد." : T2[0], mini ? "A key fragment and an image of an unknown city were found." : T2[1]); } },
+            { at: 30, fn: () => seShake(5), vis: true }] }) };
+}
+function storyChapterCard(ch) { return (t, len) => { const W = canvas.width, H = canvas.height, a = Math.max(0, Math.min(1, t / 22, (len - t) / 22)), fa = lang === "fa"; ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 8;
+    ctx.font = F(15, 700); ctx.fillText((fa ? "فصل " : "Chapter ") + ch, W / 2, H * 0.30); ctx.font = F(30, 900); ctx.fillStyle = STORY_CHAPTERS[ch - 1].accent; ctx.fillText(storyChapterName(ch), W / 2, H * 0.30 + 40); ctx.restore(); ctx.textAlign = "start"; }; }
+function storySetup() {
+    if (inEndlessRun) { STORY_SKIN = false; return; }
+    const cfg = activeLevels()[currentLevel]; if (!cfg || !cfg.story) { STORY_SKIN = false; return; }
+    STORY_SKIN = true; STORY_ENV_NOW = cfg.env;
+    const n = cfg.storyN, I = storyInfo(n), ch = I.ch;
+    if (cfg.suitOn) hasSuit = true;                                                 // محیط‌های بی‌جو: لباس فضانوردی همیشه فعال (جزئیات ظاهری در فاز لباس)
+    seBegin({ accent: I.accent, arrows: !!cfg.storyBoss, winFn: storyWin });
+    const openSeen = !!STORY.events["ch" + ch + "_open"];
+    if (I.idx === 1 && !openSeen) seTrigger({ id: "ch" + ch + "_open", when: () => true, len: 200, draw: storyChapterCard(ch), steps: [{ at: 14, fn: () => { const T = STORY_TEXT[ch - 1].open; seSay(T[0], T[1]); } }] });
+    else seSay(I.fa, I.en, { frames: 110, safe: false });
+    if (cfg.storyBoss) {
+        const aMin = LEVEL_LENGTH - 1250;
+        enemies = enemies.filter((e) => e.x < aMin - 150);                          // میدان باس از دشمن‌های عادی خالی می‌ماند
+        seGoal("شکست " + I.fa.replace(/^(باس|مینی‌باس) /, ""), "Defeat the " + I.en.replace(/^(Boss|Mini-Boss): /, ""), () => (SE.bossDone ? 1 : 0), 1);
+        seTrigger({ id: "L" + n + "_boss_intro", once: false, when: () => player.worldX > aMin + 40, len: 170, steps: [
+            { at: 2, fn: () => { if (!SE.boss) seBossSpawn(storyBossDef(n)); } },
+            { at: 12, fn: () => seShake(6), vis: true },
+            { at: 24, fn: () => { if (storyEventOnce("L" + n + "_boss_say")) seSay("نگهبان بیدار شد.|وقتی هسته می‌درخشد، با تیر بزنش.", "The guardian woke.|Shoot it while its core glows."); } }] });
+    }
+}
+function storyWin() { triggerWin(); gameState = "win"; sfx("win"); }
+// ===== تم‌های محیط جدید (زمین/آسمان/تپه توسط getSeason و THEMES وصل می‌شوند) =====
+const STORY_THEMES = {
+    lab: { ground: "#33445A", groundTop: "#6C84A0", groundLine: "#1B2735", pitWater: "#050B14", dirt: "#222E3C", hillFar: "#16294A", hillNear: "#1D3350", grassBlade: "#6C84A0" },
+    belt: { ground: "#5F4A40", groundTop: "#9A7B66", groundLine: "#3A2B25", pitWater: "#0B0714", dirt: "#3F2F29", hillFar: "#3A2F36", hillNear: "#4A3B40", grassBlade: "#9A7B66" },
+    mars: { ground: "#9A4426", groundTop: "#C9663A", groundLine: "#5E2512", pitWater: "#240C06", dirt: "#6B2E18", hillFar: "#8C3C22", hillNear: "#6E2D1A", grassBlade: "#C9663A" },
+    station: { ground: "#3E5568", groundTop: "#7FA0B8", groundLine: "#1F2F3C", pitWater: "#04141A", dirt: "#26394A", hillFar: "#14404A", hillNear: "#1C5560", grassBlade: "#7FA0B8" },
+    void: { ground: "#2A2247", groundTop: "#5B4A9A", groundLine: "#140E2A", pitWater: "#04020C", dirt: "#1B1531", hillFar: "#120A2A", hillNear: "#1C1040", grassBlade: "#5B4A9A" },
+    cave: { ground: "#36295A", groundTop: "#6A58B0", groundLine: "#1A1233", pitWater: "#080515", dirt: "#241B40", hillFar: "#1A1236", hillNear: "#241A4A", grassBlade: "#6A58B0" }
+};
+function drawStorySky(s) {
+    const W = canvas.width, H = canvas.height, px = player.worldX, f = globalFrame;
+    if (s === "lab" || s === "station") {
+        const st = s === "station", pal = st ? ["#08202A", "#14404A", "#2A7F86"] : ["#0A1424", "#16294A", "#25446B"];
+        ctx.fillStyle = vGrad("skyIn" + (st ? 1 : 0), 0, H, [[0, pal[0]], [0.6, pal[1]], [1, pal[2]]]); ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = "rgba(255,255,255,0.06)"; ctx.lineWidth = 2; ctx.beginPath();
+        for (let x = -((px * 0.35) % 90); x < W; x += 90) { ctx.moveTo(x, 20); ctx.lineTo(x, H); } ctx.stroke();
+        const pw = 520, k0 = Math.floor(px * 0.3 / pw) - 1;
+        for (let k = k0; k < k0 + 4; k++) {
+            const wx = k * pw - px * 0.3 + 120; if (wx < -220 || wx > W) continue;
+            ctx.save(); ctx.beginPath(); ctx.rect(wx, 48, 190, 120); ctx.clip(); ctx.fillStyle = "#040812"; ctx.fillRect(wx, 48, 190, 120);
+            ctx.fillStyle = "#fff"; for (let i = 0; i < 7; i++) { ctx.globalAlpha = 0.4 + 0.5 * Math.abs(Math.sin(f * 0.03 + i + k)); ctx.fillRect(wx + hash01(k * 9 + i) * 186, 52 + hash01(k * 5 + i * 3) * 112, 1.6, 1.6); } ctx.globalAlpha = 1;
+            if (st || hash01(k * 3.3) > 0.5) { ctx.fillStyle = st ? "#1C6F8C" : "#2E6FD9"; ctx.beginPath(); ctx.arc(wx + 95, 48 + (st ? 200 : 168), st ? 130 : 70, 0, 6.2832); ctx.fill(); ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.beginPath(); ctx.arc(wx + 70, 48 + (st ? 90 : 120), 18, 0, 6.2832); ctx.fill(); }
+            ctx.restore(); ctx.strokeStyle = "#3C5873"; ctx.lineWidth = 5; ctx.strokeRect(wx, 48, 190, 120);
+        }
+        ctx.fillStyle = "#0A111C"; ctx.fillRect(0, 0, W, 20);
+        for (let x = -((px * 0.5) % 160); x < W; x += 160) { const kk = Math.floor((x + px * 0.5) / 160); ctx.globalAlpha = hash01(kk * 1.7) < 0.15 ? 0.3 + 0.6 * Math.abs(Math.sin(f * 0.3 + kk)) : 0.85; ctx.fillStyle = "#CFE8FF"; ctx.fillRect(x + 40, 8, 70, 5); } ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#2B3E52"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(0, 34); ctx.lineTo(W, 34); ctx.stroke();
+        ctx.fillStyle = "#3A5068"; for (let x = -((px * 0.5) % 140); x < W; x += 140) ctx.fillRect(x, 28, 8, 14);
+    } else if (s === "belt") {
+        ctx.fillStyle = vGrad("skyBelt", 0, H, [[0, "#0B0714"], [0.6, "#1E1030"], [1, "#3A1E3D"]]); ctx.fillRect(0, 0, W, H);
+        for (let i = 0; i < 40; i++) { ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(f * 0.04 + i)); ctx.fillStyle = "#fff"; ctx.fillRect(((hash01(i * 4.7) * W * 2 - px * 0.02 * ((i % 3) + 1)) % W + W) % W, hash01(i * 2.1) * H * 0.7, 1.5, 1.5); } ctx.globalAlpha = 1;
+        const gx = W * 0.78 - (px * 0.004) % 40, gy = H * 0.3; ctx.save(); ctx.beginPath(); ctx.arc(gx, gy, 72, 0, 6.2832); ctx.clip(); ctx.fillStyle = "#C9803D"; ctx.fillRect(gx - 72, gy - 72, 144, 144);
+        ctx.fillStyle = "#A8602A"; ctx.fillRect(gx - 72, gy - 30, 144, 14); ctx.fillStyle = "#E8A55A"; ctx.fillRect(gx - 72, gy + 8, 144, 10); ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.beginPath(); ctx.arc(gx + 26, gy + 12, 78, 0, 6.2832); ctx.fill(); ctx.restore();
+        for (let i = 0; i < 12; i++) { const par = i % 2 ? 0.3 : 0.15, ax = (((i * 230 - px * par) % (W + 300)) + W + 300) % (W + 300) - 150, ay = 30 + hash01(i * 3.3) * H * 0.5, sz = 14 + hash01(i * 7.1) * 26, rot = f * 0.003 * (i % 2 ? 1 : -1) + i;
+            ctx.save(); ctx.translate(ax, ay); ctx.rotate(rot); ctx.fillStyle = i % 2 ? "#4A3B40" : "#3A2F36"; ctx.beginPath(); ctx.moveTo(-sz, 2); ctx.lineTo(-sz * 0.4, -sz * 0.8); ctx.lineTo(sz * 0.5, -sz * 0.6); ctx.lineTo(sz, sz * 0.2); ctx.lineTo(sz * 0.2, sz * 0.8); ctx.lineTo(-sz * 0.7, sz * 0.6); ctx.closePath(); ctx.fill(); ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(-sz * 0.4, -sz * 0.6, sz * 0.5, 3); ctx.restore(); }
+    } else if (s === "mars") {
+        ctx.fillStyle = vGrad("skyMars", 0, H, [[0, "#2B120D"], [0.4, "#7A3320"], [0.75, "#C9703F"], [1, "#E8A56A"]]); ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#FFE3C2"; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(W * 0.2, H * 0.36, 15, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.arc(W * 0.2, H * 0.36, 34, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = "#B89A8A"; ctx.beginPath(); ctx.arc(W * 0.62 - (px * 0.003) % 30, H * 0.2, 9, 0, 6.2832); ctx.fill(); ctx.fillStyle = "#8F7A70"; ctx.beginPath(); ctx.arc(W * 0.78, H * 0.28, 5, 0, 6.2832); ctx.fill();
+        const hill = (par, base, a1, a2, col) => { ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 22) { const wx = x + px * par; ctx.lineTo(x, base - a1 * Math.sin(wx / 170) - a2 * Math.sin(wx / 61 + 1)); } ctx.lineTo(W, H); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+        hill(0.12, H * 0.64, 26, 9, "#8C3C22");
+        const dp = 640, d0 = Math.floor(px * 0.12 / dp) - 1;
+        for (let k = d0; k < d0 + 3; k++) { const dx = k * dp - px * 0.12 + 200; if (dx < -80 || dx > W + 80) continue; const by = H * 0.64 - 26 * Math.sin((dx + px * 0.12) / 170) - 9 * Math.sin((dx + px * 0.12) / 61 + 1); ctx.fillStyle = "#6E2D1A"; ctx.beginPath(); ctx.arc(dx, by, 36, Math.PI, 0); ctx.fill(); ctx.fillRect(dx - 36, by - 1, 72, 8); ctx.strokeStyle = "#6E2D1A"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(dx + 10, by - 34); ctx.lineTo(dx + 10, by - 52); ctx.stroke(); ctx.fillStyle = "#FFD180"; ctx.globalAlpha = 0.6; ctx.fillRect(dx - 14, by - 16, 6, 5); ctx.fillRect(dx + 2, by - 20, 6, 5); ctx.globalAlpha = 1; }
+        hill(0.3, H * 0.74, 20, 8, "#6E2D1A");
+        ctx.fillStyle = "rgba(232,165,106,0.18)"; ctx.fillRect(0, H * 0.55, W, H * 0.2);
+    } else if (s === "void") {
+        ctx.fillStyle = vGrad("skyVoid", 0, H, [[0, "#02010A"], [0.6, "#120A2A"], [1, "#2A1250"]]); ctx.fillRect(0, 0, W, H);
+        for (let i = 0; i < 46; i++) { ctx.globalAlpha = 0.3 + 0.55 * Math.abs(Math.sin(f * 0.03 + i)); ctx.fillStyle = i % 5 === 0 ? "#B3C7FF" : "#fff"; ctx.fillRect(((hash01(i * 5.9) * W * 2 - px * 0.015 * ((i % 3) + 1)) % W + W) % W, hash01(i * 2.7) * H * 0.75, 1.5, 1.5); } ctx.globalAlpha = 1;
+        const bx = W * 0.7 - (px * 0.01) % 25, by = H * 0.36;
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(-0.25);
+        [["rgba(255,171,64,0.55)", 130, 30], ["rgba(224,64,251,0.45)", 100, 23], ["rgba(255,255,255,0.35)", 76, 17]].forEach(([c, rx, ry], i) => { ctx.strokeStyle = c; ctx.lineWidth = 5 - i; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, 6.2832); ctx.stroke(); });
+        for (let i = 0; i < 14; i++) { const a = f * 0.02 * (1 + (i % 3) * 0.4) + i * 0.45, r = 100 + (i % 3) * 14; ctx.fillStyle = "#FFD180"; ctx.globalAlpha = 0.8; ctx.fillRect(Math.cos(a) * r * 1.2, Math.sin(a) * r * 0.27, 2.2, 2.2); } ctx.globalAlpha = 1; ctx.restore();
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(bx, by, 36, 0, 6.2832); ctx.fill(); ctx.strokeStyle = "rgba(255,200,150,0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, by, 44, 0, 6.2832); ctx.stroke();
+    } else if (s === "cave") {
+        ctx.fillStyle = vGrad("skyCave", 0, H, [[0, "#0A0716"], [0.55, "#1A1236"], [1, "#2C2058"]]); ctx.fillRect(0, 0, W, H);
+        const cp = 380, c0 = Math.floor(px * 0.22 / cp) - 1;
+        for (let k = c0; k < c0 + 4; k++) { const cx = k * cp - px * 0.22 + 100; if (cx < -120 || cx > W + 120) continue; const base = H * 0.66 + hash01(k * 2.2) * 30;
+            ctx.fillStyle = "rgba(124,77,255,0.16)"; ctx.beginPath(); ctx.arc(cx, base - 30, 60 + 6 * Math.sin(f * 0.04 + k), 0, 6.2832); ctx.fill();
+            [[-22, 40], [0, 66], [20, 46]].forEach(([ox, h], j) => { ctx.fillStyle = j === 1 ? "#9575FF" : "#7C4DFF"; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(cx + ox - 9, base); ctx.lineTo(cx + ox, base - h); ctx.lineTo(cx + ox + 9, base); ctx.closePath(); ctx.fill(); }); ctx.globalAlpha = 1; }
+        [[0.3, "#150F2B", 70], [0.5, "#0E0920", 50]].forEach(([par, col, mh], li) => { ctx.fillStyle = col; const sp = 120 + li * 40; for (let x = -((px * par) % sp) - sp; x < W + sp; x += sp) { const kk = Math.floor((x + px * par) / sp), h = mh * (0.5 + hash01(kk * 1.9 + li) * 0.8); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + sp * 0.5, h); ctx.lineTo(x + sp, 0); ctx.closePath(); ctx.fill(); } });
+        if (!qSkipAmbient()) for (let i = 0; i < 14; i++) { const mx = (hash01(i * 4.1) * W + Math.sin(f * 0.01 + i) * 14 + W) % W, my = ((hash01(i * 2.3) * H) - f * (0.2 + hash01(i) * 0.3) % H + H) % H; ctx.globalAlpha = 0.25 + 0.3 * hash01(i * 8); ctx.fillStyle = "#B388FF"; ctx.fillRect(mx, my, 2, 2); } ctx.globalAlpha = 1;
+    }
+}
+function drawStoryGroundDetail(s, W, cO) {
+    if (s === "lab" || s === "station") {
+        ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let wx = Math.floor(cO / 80) * 80; wx < cO + W + 80; wx += 80) { const sx = wx - cO, gy = baseGroundHeightAt(wx); ctx.moveTo(sx, gy + 5); ctx.lineTo(sx, gy + 34); } ctx.stroke();
+        ctx.fillStyle = s === "lab" ? "rgba(255,213,79,0.55)" : "rgba(105,240,174,0.45)";
+        for (let wx = Math.floor(cO / 320) * 320; wx < cO + W + 320; wx += 320) { const sx = wx - cO + 20, gy = baseGroundHeightAt(wx + 20); ctx.fillRect(sx, gy + 8, 38, 4); }
+    } else if (s === "cave" || s === "void") {
+        const col = s === "cave" ? "179,136,255," : "224,64,251,";
+        for (let wx = Math.floor(cO / 110) * 110; wx < cO + W + 110; wx += 110) { if (hash01(wx * 0.9) < 0.5) continue; const sx = wx - cO, gy = baseGroundHeightAt(wx), glow = 0.3 + 0.35 * Math.abs(Math.sin(globalFrame * 0.05 + wx * 0.01)); ctx.strokeStyle = "rgba(" + col + glow + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 12, gy + 7); ctx.lineTo(sx - 2, gy + 14); ctx.lineTo(sx + 10, gy + 9); ctx.stroke(); }
+    }
+}
+// ===== تزئینات سطح زمین هر محیط (جایگزین درخت/بوته) =====
+const STORY_PROPS = { earth: ["p_console", "p_tank", "p_crate"], moon: ["crater", "moonrock", "p_antenna"], asteroids: ["p_debris", "p_rock", "p_antenna"], mars: ["p_rock", "p_dome", "p_antenna"], station: ["p_crate", "p_pipe", "p_console"], blackhole: ["p_shard", "p_ring", "p_debris"], cave: ["p_crystal", "p_stalag", "p_crystal"], venus: ["lavavent", "obsidian", "p_spire"] };
+function storyProps(cfg) {
+    const list = STORY_PROPS[cfg.env] || STORY_PROPS.earth;
+    for (let x = 130; x < LEVEL_LENGTH; x += 120 + rng() * 130) if (!isInPit(x, currentPits)) treesAndBushes.push({ type: list[Math.floor(rng() * list.length)], x, s: 0.7 + rng() * 0.8 });
+}
+function drawStoryProp(type, x, bY, s) {
+    s = s || 1; const P = STORY_PAL[STORY_ENV_NOW] || STORY_PAL.earth, f = globalFrame; ctx.save(); ctx.translate(x, bY);
+    if (type === "p_console") { ctx.fillStyle = "#263645"; ctx.fillRect(-16 * s, -30 * s, 32 * s, 30 * s); ctx.fillStyle = "#0B1622"; ctx.fillRect(-12 * s, -26 * s, 24 * s, 14 * s); ctx.fillStyle = P.g; ctx.globalAlpha = 0.5 + 0.4 * Math.abs(Math.sin(f * 0.05 + x)); ctx.fillRect(-9 * s, -23 * s, 18 * s, 2 * s); ctx.fillRect(-9 * s, -18 * s, 11 * s, 2 * s); ctx.globalAlpha = 1; ctx.fillStyle = "#FF5252"; ctx.fillRect(-12 * s, -8 * s, 4 * s, 3 * s); ctx.fillStyle = "#69F0AE"; ctx.fillRect(-5 * s, -8 * s, 4 * s, 3 * s); }
+    else if (type === "p_tank") { ctx.fillStyle = "#1C2A38"; ctx.fillRect(-14 * s, -6 * s, 28 * s, 6 * s); ctx.fillStyle = "rgba(79,195,247,0.25)"; ctx.fillRect(-11 * s, -52 * s, 22 * s, 46 * s); ctx.fillStyle = P.g; ctx.globalAlpha = 0.45; ctx.fillRect(-11 * s, -30 * s, 22 * s, 24 * s); ctx.globalAlpha = 1; ctx.strokeStyle = "#90A4AE"; ctx.lineWidth = 2; ctx.strokeRect(-11 * s, -52 * s, 22 * s, 46 * s); ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(-3 * s, -14 * s - ((f * 0.4) % 12), 1.6, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+    else if (type === "p_crate") { ctx.fillStyle = "#5B6B7A"; ctx.fillRect(-15 * s, -24 * s, 30 * s, 24 * s); ctx.strokeStyle = "#2F3B47"; ctx.lineWidth = 2; ctx.strokeRect(-15 * s, -24 * s, 30 * s, 24 * s); ctx.beginPath(); ctx.moveTo(-15 * s, -24 * s); ctx.lineTo(15 * s, 0); ctx.moveTo(15 * s, -24 * s); ctx.lineTo(-15 * s, 0); ctx.stroke(); ctx.fillStyle = "#FFD54F"; ctx.fillRect(-15 * s, -8 * s, 30 * s, 3 * s); }
+    else if (type === "p_antenna") { ctx.strokeStyle = "#90A4AE"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -46 * s); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -38 * s, 10 * s, 3.6, 5.8); ctx.stroke(); ctx.fillStyle = P.g; ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(f * 0.08 + x)); ctx.beginPath(); ctx.arc(0, -47 * s, 2.8, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+    else if (type === "p_debris") { ctx.fillStyle = P.d; ctx.beginPath(); ctx.moveTo(-18 * s, 0); ctx.lineTo(-10 * s, -14 * s); ctx.lineTo(2 * s, -8 * s); ctx.lineTo(12 * s, -18 * s); ctx.lineTo(18 * s, 0); ctx.closePath(); ctx.fill(); ctx.strokeStyle = "#9E9E9E"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(4 * s, -8 * s); ctx.lineTo(16 * s, -26 * s); ctx.stroke(); }
+    else if (type === "p_rock") { ctx.fillStyle = P.d; ctx.beginPath(); ctx.moveTo(-20 * s, 0); ctx.lineTo(-13 * s, -18 * s); ctx.lineTo(0, -24 * s); ctx.lineTo(14 * s, -14 * s); ctx.lineTo(20 * s, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = P.b; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(-13 * s, -18 * s); ctx.lineTo(0, -24 * s); ctx.lineTo(-2 * s, -10 * s); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+    else if (type === "p_dome") { ctx.fillStyle = "#6B2E18"; ctx.beginPath(); ctx.arc(0, 0, 26 * s, Math.PI, 0); ctx.fill(); ctx.fillStyle = "rgba(255,209,128,0.55)"; ctx.beginPath(); ctx.arc(0, -2, 18 * s, Math.PI * 1.05, Math.PI * 1.95); ctx.fill(); ctx.fillStyle = "#4A1F10"; ctx.fillRect(-26 * s, -3, 52 * s, 5); ctx.fillStyle = P.g; ctx.fillRect(-4 * s, -16 * s, 8 * s, 5 * s); }
+    else if (type === "p_pipe") { ctx.fillStyle = "#3B5160"; ctx.fillRect(-18 * s, -22 * s, 12 * s, 22 * s); ctx.fillRect(-6 * s, -34 * s, 12 * s, 34 * s); ctx.fillRect(6 * s, -16 * s, 12 * s, 16 * s); ctx.fillStyle = P.g; ctx.globalAlpha = 0.6; ctx.fillRect(-6 * s, -34 * s, 12 * s, 3 * s); ctx.globalAlpha = 1; ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.arc(0, -38 * s - ((f * 0.3) % 14), 2.2, 0, 6.2832); ctx.fill(); }
+    else if (type === "p_shard") { ctx.fillStyle = P.d; ctx.beginPath(); ctx.moveTo(-9 * s, 0); ctx.lineTo(-3 * s, -40 * s); ctx.lineTo(8 * s, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = P.g; ctx.globalAlpha = 0.5 + 0.3 * Math.sin(f * 0.06 + x); ctx.beginPath(); ctx.moveTo(-3 * s, -40 * s); ctx.lineTo(0, -6 * s); ctx.lineTo(8 * s, 0); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+    else if (type === "p_ring") { ctx.strokeStyle = P.g; ctx.lineWidth = 3; ctx.globalAlpha = 0.5 + 0.3 * Math.abs(Math.sin(f * 0.05 + x)); ctx.beginPath(); ctx.ellipse(0, -26 * s, 16 * s, 24 * s, 0, 0, 6.2832); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = P.d; ctx.fillRect(-18 * s, -4 * s, 36 * s, 5); }
+    else if (type === "p_crystal") { [[-12, 30, 0], [0, 50, 1], [12, 34, 0]].forEach(([ox, h, br]) => { ctx.fillStyle = br ? "#B39DFF" : "#7C4DFF"; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.moveTo((ox - 7) * s, 0); ctx.lineTo(ox * s, -h * s); ctx.lineTo((ox + 7) * s, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.moveTo(ox * s, -h * s); ctx.lineTo((ox - 2) * s, -4 * s); ctx.lineTo((ox - 6) * s, -2 * s); ctx.closePath(); ctx.fill(); }); ctx.globalAlpha = 0.1 + 0.08 * Math.sin(f * 0.05 + x); ctx.fillStyle = "#B388FF"; ctx.beginPath(); ctx.arc(0, -24 * s, 36 * s, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+    else if (type === "p_stalag") { ctx.fillStyle = "#3A2F5C"; ctx.beginPath(); ctx.moveTo(-12 * s, 0); ctx.lineTo(-2 * s, -38 * s); ctx.lineTo(12 * s, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#4C3E78"; ctx.beginPath(); ctx.moveTo(-2 * s, -38 * s); ctx.lineTo(4 * s, -16 * s); ctx.lineTo(-4 * s, -14 * s); ctx.closePath(); ctx.fill(); }
+    else if (type === "p_spire") { ctx.fillStyle = "#8E5B1A"; ctx.fillRect(-5 * s, -54 * s, 10 * s, 54 * s); ctx.fillStyle = "#D4A24C"; ctx.beginPath(); ctx.moveTo(-9 * s, -54 * s); ctx.lineTo(0, -70 * s); ctx.lineTo(9 * s, -54 * s); ctx.closePath(); ctx.fill(); ctx.fillStyle = P.g; ctx.globalAlpha = 0.5 + 0.4 * Math.abs(Math.sin(f * 0.06 + x)); ctx.fillRect(-2, -44 * s, 4, 6); ctx.globalAlpha = 1; }
+    ctx.restore();
+}
+// ===== دشمن‌های رباتیک/علمی‌تخیلی (جایگزین حلزون و جوجه‌تیغی و …؛ رفتار و جعبه‌ی برخورد همان رفتار موتور است) =====
+function drawStoryEnemy(en, dx, gY, al, sl) {
+    const P = STORY_PAL[STORY_ENV_NOW] || STORY_PAL.earth, k = en.kind, f = globalFrame, fc = en.facing || 1;
+    ctx.save(); ctx.globalAlpha = al;
+    if (k === "ufo" || k === "vulture") {                                                // پهپاد شناور
+        const y = gY - ((en.hoverY || 90) + Math.sin(en.hoverPhase || 0) * 10);
+        ctx.translate(dx, y); ctx.fillStyle = P.d; ctx.beginPath(); ctx.ellipse(0, 0, 14, 6, 0, 0, 6.2832); ctx.fill(); ctx.fillStyle = P.b; ctx.beginPath(); ctx.ellipse(0, -3, 8, 5, 0, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2; const rr = 14 + 3 * Math.sin(f * 1.4); ctx.beginPath(); ctx.moveTo(-rr, -8); ctx.lineTo(rr, -8); ctx.moveTo(-rr * 0.8, 9); ctx.lineTo(rr * 0.8, 9); ctx.stroke();
+        ctx.fillStyle = P.g; ctx.globalAlpha = al * (0.6 + 0.4 * Math.abs(Math.sin(f * 0.1 + dx))); ctx.beginPath(); ctx.arc(0, 2, 3.2, 0, 6.2832); ctx.fill();
+    } else if (k === "slime") {                                                          // موجود انرژی‌محور نارنجی
+        const hop = en.hopH || 0; ctx.translate(dx, gY - hop); const sq = hop > 2 ? 1.12 : 1; ctx.scale(fc, 1);
+        const g = ctx.createRadialGradient(-4, -17 * sq, 2, 0, -8 * sq, 17); g.addColorStop(0, "#FFE0B2"); g.addColorStop(0.5, "#FF9800"); g.addColorStop(1, "#E65100");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -11 * sq, 15, 12 * sq, 0, Math.PI, 0); ctx.lineTo(15, 0); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(5, -13, 4, 0, 6.2832); ctx.arc(-3, -13, 3.4, 0, 6.2832); ctx.fill(); ctx.fillStyle = "#3E1500"; ctx.beginPath(); ctx.arc(6, -13, 2, 0, 6.2832); ctx.arc(-2, -13, 1.7, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = "rgba(255,213,79," + (0.4 + 0.3 * Math.sin(f * 0.2 + dx)) + ")"; ctx.beginPath(); ctx.arc(-7, -20 * sq, 2, 0, 6.2832); ctx.arc(8, -22 * sq, 1.6, 0, 6.2832); ctx.fill();
+    } else if (k === "lavaGolem") {                                                      // ربات سنگین زره‌دار
+        const sc = (en.miniScale || 1) * 1.25; ctx.translate(dx, gY); ctx.rotate(sl * 0.3); ctx.scale(fc * sc, sc);
+        ctx.fillStyle = "#1E272E"; ctx.fillRect(-17, -9, 34, 9); for (let i = -14; i <= 14; i += 7) { ctx.fillStyle = "#37474F"; ctx.fillRect(i - 2, -8, 4, 7); }
+        ctx.fillStyle = P.d; ctx.fillRect(-14, -34, 28, 26); ctx.fillStyle = P.b; ctx.fillRect(-14, -34, 28, 6); ctx.fillStyle = P.d; ctx.fillRect(14, -30, 9, 8); ctx.fillRect(-23, -30, 9, 8);
+        ctx.fillStyle = "#0B1016"; ctx.fillRect(-8, -28, 16, 8); ctx.fillStyle = P.g; ctx.globalAlpha = al * (0.7 + 0.3 * Math.abs(Math.sin(f * 0.1))); ctx.fillRect(-6, -26, 12, 4);
+    } else if (k === "steamWraith") {                                                    // جرقه‌ی انرژی
+        ctx.translate(dx, gY - 24 - Math.sin(f * 0.08 + dx) * 4); ctx.fillStyle = P.g; for (let i = 3; i >= 0; i--) { ctx.globalAlpha = al * (0.14 + 0.18 * (3 - i) / 3); ctx.beginPath(); ctx.arc(-fc * i * 6, i * 2, 9 - i, 0, 6.2832); ctx.fill(); } ctx.globalAlpha = al; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(fc * 3, -1, 3, 0, 6.2832); ctx.fill();
+    } else if (k === "hedgehog" || k === "wolf") {                                       // ربات تیغ‌دار تعقیب‌کننده
+        ctx.translate(dx, gY); ctx.rotate(sl * 0.4); ctx.scale(fc, 1);
+        ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(-9, -4, 4, 0, 6.2832); ctx.arc(9, -4, 4, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = P.d; ctx.beginPath(); ctx.moveTo(-15, -6); ctx.lineTo(-13, -17); ctx.lineTo(14, -17); ctx.lineTo(16, -6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = P.b; for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(i * 4 - 3, -17); ctx.lineTo(i * 4, -26 - (i % 2 ? 0 : 3)); ctx.lineTo(i * 4 + 3, -17); ctx.closePath(); ctx.fill(); }
+        ctx.fillStyle = "#FF5252"; ctx.beginPath(); ctx.arc(9, -12, 3, 0, 6.2832); ctx.fill(); ctx.fillStyle = "rgba(255,82,82,0.35)"; ctx.beginPath(); ctx.arc(9, -12, 6 + Math.sin(f * 0.2), 0, 6.2832); ctx.fill();
+    } else if (k === "hunter" || k === "alien") {                                        // ربات تیرانداز
+        ctx.translate(dx, gY); ctx.rotate(sl * 0.4); ctx.scale(fc, 1);
+        ctx.strokeStyle = P.d; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(-4, -14); ctx.lineTo(-7, 0); ctx.moveTo(4, -14); ctx.lineTo(7, 0); ctx.stroke();
+        ctx.fillStyle = P.b; ctx.fillRect(-9, -33, 18, 20); ctx.fillStyle = P.d; ctx.fillRect(-9, -22, 18, 3);
+        ctx.fillStyle = "#455A64"; ctx.fillRect(7, -29, 14, 5); ctx.fillStyle = P.g; ctx.globalAlpha = al * (0.6 + 0.4 * Math.abs(Math.sin(f * 0.12 + dx))); ctx.fillRect(20, -28, 4, 3); ctx.globalAlpha = al;
+        ctx.fillStyle = P.b; ctx.beginPath(); ctx.arc(0, -38, 8, Math.PI, 0); ctx.fill(); ctx.fillRect(-8, -38, 16, 4); ctx.fillStyle = "#0B1016"; ctx.fillRect(-1, -39, 8, 4); ctx.fillStyle = P.g; ctx.fillRect(2, -38, 4, 2);
+    } else {                                                                             // ربات گشت‌زن چرخ‌دار
+        ctx.translate(dx, gY); ctx.rotate(sl * 0.4); ctx.scale(fc, 1);
+        ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(-9, -5, 5, 0, 6.2832); ctx.arc(9, -5, 5, 0, 6.2832); ctx.fill(); ctx.fillStyle = "#90A4AE"; ctx.beginPath(); ctx.arc(-9, -5, 1.8, 0, 6.2832); ctx.arc(9, -5, 1.8, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = P.b; roundRect(-14, -25, 28, 17, 5); ctx.fill(); ctx.fillStyle = P.d; ctx.fillRect(-14, -14, 28, 3);
+        ctx.fillStyle = "#0B1016"; ctx.beginPath(); ctx.arc(6, -18, 5, 0, 6.2832); ctx.fill(); ctx.fillStyle = P.g; ctx.beginPath(); ctx.arc(6.5, -18, 2.6, 0, 6.2832); ctx.fill();
+        ctx.strokeStyle = P.d; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-5, -25); ctx.lineTo(-8, -33); ctx.stroke(); ctx.fillStyle = P.g; ctx.globalAlpha = al * (0.4 + 0.6 * Math.abs(Math.sin(f * 0.1))); ctx.beginPath(); ctx.arc(-8, -34, 2.2, 0, 6.2832); ctx.fill();
+    }
+    ctx.restore();
+}
+// ===== صفحه‌ی انتخاب فصل/مرحله (۸ فصل × ۲۰ مرحله) =====
+const STORY_MENU_BG = [["#0A1424", "#25446B", "#4FC3F7"], ["#05030F", "#3B4A5C", "#80DEEA"], ["#0B0714", "#4A2A3F", "#FFB74D"], ["#2B120D", "#C9703F", "#FFAB40"], ["#08202A", "#2A7F86", "#69F0AE"], ["#02010A", "#2A1250", "#E040FB"], ["#0A0716", "#2C2058", "#B388FF"], ["#2C0B05", "#B34715", "#FFD54F"]];
+function chapterIcon(ch, x, y, r) {
+    const A = STORY_CHAPTERS[ch - 1]; ctx.save(); ctx.translate(x, y); ctx.fillStyle = A.accent; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 1.6;
+    if (A.env === "earth") { ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, 6.2832); ctx.fill(); for (let i = 0; i < 6; i++) { ctx.save(); ctx.rotate(i * 1.047); ctx.fillRect(-r * 0.18, -r * 1.05, r * 0.36, r * 0.4); ctx.restore(); } ctx.fillStyle = "#0A1424"; ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, 6.2832); ctx.fill(); }
+    else if (A.env === "moon") { ctx.beginPath(); ctx.arc(0, 0, r, 1.2, 5.1); ctx.arc(r * 0.45, -r * 0.1, r * 0.78, 5.0, 1.3, true); ctx.closePath(); ctx.fill(); }
+    else if (A.env === "asteroids") { ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(-r * 0.4, -r * 0.9); ctx.lineTo(r * 0.6, -r * 0.7); ctx.lineTo(r, r * 0.2); ctx.lineTo(r * 0.1, r * 0.9); ctx.lineTo(-r * 0.7, r * 0.6); ctx.closePath(); ctx.fill(); }
+    else if (A.env === "mars") { ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.fill(); ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.2, r * 0.28, 0, 6.2832); ctx.arc(r * 0.35, r * 0.3, r * 0.2, 0, 6.2832); ctx.fill(); }
+    else if (A.env === "station") { ctx.fillRect(-r, -r * 0.18, r * 2, r * 0.36); ctx.fillRect(-r * 0.18, -r, r * 0.36, r * 2); ctx.fillStyle = "#08202A"; ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, 6.2832); ctx.fill(); ctx.fillStyle = A.accent; ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, 6.2832); ctx.fill(); }
+    else if (A.env === "blackhole") { ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(0, 0, r * 0.55, 0, 6.2832); ctx.fill(); ctx.strokeStyle = A.accent; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.1, r * 0.4, -0.3, 0, 6.2832); ctx.stroke(); }
+    else if (A.env === "cave") { ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.55, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.55, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(-r * 0.45, r * 0.1, r * 0.5, 0, 6.2832); ctx.arc(r * 0.1, -r * 0.2, r * 0.62, 0, 6.2832); ctx.arc(r * 0.6, r * 0.15, r * 0.45, 0, 6.2832); ctx.fill(); }
+    ctx.restore();
+}
+function drawLevels() {
+    const W = canvas.width, H = canvas.height, ch = clamp(currentSeason, 1, STORY_CHAPTER_COUNT), C = STORY_CHAPTERS[ch - 1], BG = STORY_MENU_BG[ch - 1], acc = BG[2], fa = lang === "fa";
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, BG[0]); g.addColorStop(1, BG[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (C.env !== "earth") { for (let i = 0; i < 42; i++) { ctx.globalAlpha = 0.25 + Math.abs(Math.sin(globalFrame * 0.04 + i)) * 0.6; ctx.fillStyle = "#fff"; ctx.fillRect(hash01(i * 5.3) * W, hash01(i * 2.9) * H * 0.85, 1.8, 1.8); } ctx.globalAlpha = 1; }
+    else { ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 2; ctx.beginPath(); for (let x = 0; x < W; x += 90) { ctx.moveTo(x, 0); ctx.lineTo(x, H); } ctx.stroke(); }
+    ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(0, H - 22, W, 22);
+    drawCoinCtr(W - 90, 26);
+    drawButton(Object.assign({}, backToMenuRect, { label: t("back"), color: "rgba(38,50,56,0.75)" }));
+    ctx.save(); ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowOffsetY = 3; ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.font = F(12, 700); ctx.fillText((fa ? "فصل " : "Chapter ") + ch + " / " + STORY_CHAPTER_COUNT, W / 2, 24);
+    ctx.fillStyle = "#fff"; ctx.font = F(Math.min(26, Math.round(560 / Math.max(14, storyChapterName(ch).length) * 1.0)), 900); ctx.fillText(storyChapterName(ch), W / 2, 54); ctx.restore();
+    const nmW = Math.min(300, W / 2 - 90); chapterIcon(ch, W / 2 - nmW / 2 - 22, 46, 11); chapterIcon(ch, W / 2 + nmW / 2 + 22, 46, 11);
+    let starSum = 0; for (let i = 1; i <= STORY_CHAPTER_SIZE; i++) starSum += STORY.stars[storyG(ch, i)] || 0;
+    drawStarShape(W / 2 - 42, 72, 8, acc); ctx.fillStyle = "#fff"; ctx.font = F(14); ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 3; ctx.fillText(starSum + " / 57", W / 2 - 30, 77); ctx.shadowBlur = 0; ctx.textAlign = "start";
+    if (seasonNavPress > 0) seasonNavPress--;
+    const nextP = seasonNavPress > 0 && seasonNavPressDir === 1, prevP = seasonNavPress > 0 && seasonNavPressDir === -1;
+    const hasNext = ch < STORY_CHAPTER_COUNT, hasPrev = ch > 1;
+    const arrow = (r, dir, press, tgt) => { ctx.save(); const cx = r.x + r.w / 2, cy = r.y + r.h / 2; ctx.translate(cx, cy); ctx.scale(press ? 0.92 : 1, press ? 0.92 : 1); ctx.translate(-cx, -cy); ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = press ? 3 : 6; ctx.shadowOffsetY = press ? 1 : 3; ctx.fillStyle = press ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.92)"; roundRect(r.x, r.y, r.w, r.h, 12); ctx.fill(); ctx.restore();
+        chapterIcon(tgt, r.x + (dir > 0 ? 18 : 44), r.y + 23, 8); ctx.strokeStyle = "#37474F"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.beginPath(); const bx = r.x + (dir > 0 ? 34 : 28); ctx.moveTo(bx, r.y + 14); ctx.lineTo(bx + 12 * dir, r.y + 23); ctx.lineTo(bx, r.y + 32); ctx.stroke(); };
+    seasonArrowRect = hasNext ? rect(W - 86, H - 66, 62, 46) : rect(-999, -999, 0, 0); if (hasNext) arrow(seasonArrowRect, 1, nextP, ch + 1);
+    prevSeasonArrowRect = hasPrev ? rect(24, H - 66, 62, 46) : rect(-999, -999, 0, 0); if (hasPrev) arrow(prevSeasonArrowRect, -1, prevP, ch - 1);
+    const open = storyChapterOpen(ch);
+    if (!open) { ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.5)"; roundRect(W / 2 - 170, 82, 340, 28, 10); ctx.fill(); ctx.fillStyle = "#FFCDD2"; ctx.font = F(14, 900); ctx.textAlign = "center"; ctx.fillText("🔒 " + (fa ? "ابتدا فصل قبل را تمام کن" : "Finish the previous chapter first"), W / 2, 101); ctx.restore(); ctx.textAlign = "start"; }
+    if (lockShake > 0) lockShake--;
+    levelButtons = [];
+    const cols = 5, rows = 4, cW = 96, cH = 56, gap = 12, gW = cols * cW + (cols - 1) * gap, sX = (W - gW) / 2, sY = 92, front = STORY.unlockedMax;
+    let num = 1;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const bx = sX + c * (cW + gap), by = sY + r * (cH + gap), gn = storyG(ch, num), I = storyInfo(gn), isBoss = I.boss || I.miniBoss;
+        const b = rect(bx, by, cW, cH); b.number = num; levelButtons.push(b);
+        const unlocked = open && storyUnlocked(gn), shakeOff = (lockShake > 0 && lockShakeNum === num) ? Math.sin(lockShake * 0.9) * 4 : 0;
+        ctx.save(); if (shakeOff) ctx.translate(shakeOff, 0);
+        if (!unlocked) {
+            ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2; const lg = ctx.createLinearGradient(0, by, 0, by + cH); lg.addColorStop(0, "#5F6E7B"); lg.addColorStop(1, "#34414C"); ctx.fillStyle = lg; roundRect(bx, by, cW, cH, 12); ctx.fill(); ctx.shadowBlur = 0;
+            const lx = bx + cW / 2, ly = by + cH / 2 - 2; ctx.strokeStyle = "#CFD8DC"; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.arc(lx, ly - 5, 6.5, Math.PI, 2 * Math.PI); ctx.stroke(); ctx.fillStyle = "#CFD8DC"; roundRect(lx - 10, ly - 4, 20, 15, 3); ctx.fill(); ctx.fillStyle = "#546E7A"; ctx.beginPath(); ctx.arc(lx, ly + 2.5, 2.2, 0, 6.2832); ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = F(11, 900); ctx.textAlign = "center"; ctx.fillText(String(gn), bx + cW / 2, by + 15); ctx.textAlign = "start"; ctx.restore(); num++; continue;
+        }
+        ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
+        if (isBoss) { const pulse = 0.5 + Math.sin(globalFrame * 0.06) * 0.2; ctx.fillStyle = "#7F0000"; roundRect(bx, by, cW, cH, 12); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,82,82," + pulse + ")"; ctx.lineWidth = 2.5; roundRect(bx, by, cW, cH, 12); ctx.stroke(); }
+        else { const cg = ctx.createLinearGradient(0, by, 0, by + cH); cg.addColorStop(0, blendC(C.accent, "#ffffff", 0.35)); cg.addColorStop(1, blendC(C.accent, "#000000", 0.45)); ctx.fillStyle = cg; roundRect(bx, by, cW, cH, 12); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.2)"; roundRect(bx + 3, by + 3, cW - 6, cH / 2 - 3, 9); ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.22)"; ctx.lineWidth = 1.5; roundRect(bx, by, cW, cH, 12); ctx.stroke(); }
+        if (gn === front && !STORY.arcDone) { ctx.strokeStyle = "rgba(255,255,255," + (0.55 + 0.35 * Math.sin(globalFrame * 0.1)) + ")"; ctx.lineWidth = 3; roundRect(bx - 3, by - 3, cW + 6, cH + 6, 14); ctx.stroke(); }
+        ctx.restore();
+        ctx.fillStyle = isBoss ? "#FFCDD2" : "#0A1424"; ctx.font = F(19, 900); ctx.textAlign = "center"; ctx.fillText(String(gn), bx + cW / 2, by + 27);
+        if (isBoss) drawDevilIcon(bx + cW / 2, by + cH - 12); else { const earned = STORY.stars[gn] || 0; for (let i = 0; i < 3; i++) drawStarShape(bx + cW / 2 - 17 + i * 17, by + cH - 11, 6.5, i < earned ? "#FFEB3B" : "rgba(0,0,0,0.25)"); }
+        ctx.textAlign = "start"; num++;
+    }
+    if (open && storyUnlocked(storyG(ch, 1))) { const fg = Math.min(STORY.unlockedMax, STORY_LEVEL_COUNT), fi = storyInfo(fg); if (fi && fi.ch === ch) { ctx.save(); ctx.textAlign = "center"; ctx.font = F(13, 700); ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillText((fa ? "ادامه: مرحله " : "Next: level ") + fg + " — " + (fa ? fi.fa : fi.en), W / 2, H - 38); ctx.restore(); ctx.textAlign = "start"; } }
+}
+
+function initLevel(num) { _initLevelCore(num); storySetup(); }   // پوشش: بعد از ساخت مرحله، موتور داستان و محیط جدید راه‌اندازی می‌شود
 // ===================== SAVE/LOAD =====================
 function saveGame() {
     try {
@@ -81,7 +781,8 @@ function saveGame() {
             levelStars6, levelUnlocked6, hasSuit, btnScale, suitShowFace, introShown,
             installTime, dailyStreakDay, lastClaimDayNumber,
             musicOn, sfxOn, masterAudioOn, musicVolume, sfxVolume, gfxQuality,
-            endlessKeys, endlessKeyTimestamp, endlessRecord, endlessUnlockSeen
+            endlessKeys, endlessKeyTimestamp, endlessRecord, endlessUnlockSeen,
+            saveSchema: SAVE_SCHEMA, story: STORY
         };
         localStorage.setItem("advGame3", JSON.stringify(d));
     } catch (e) { }
@@ -91,6 +792,12 @@ function loadGame() {
         const raw = localStorage.getItem("advGame3");
         if (!raw) { ensureInstallTime(); ensureEndlessKeyTimestamp(); return; }
         const d = JSON.parse(raw);
+        // مهاجرت امن: اگر ذخیره‌ی قدیمی (نسخه‌ی ۱) است، پیش از هر نوشتنِ جدید یک نسخه‌ی قابل‌بازیابی نگه دار (فقط یک‌بار)
+        if (d.saveSchema !== SAVE_SCHEMA) { try { if (!localStorage.getItem("advGame3_backup_v1")) localStorage.setItem("advGame3_backup_v1", raw); } catch (e) { } }
+        if (d.story && typeof d.story === "object") {
+            const sd = d.story;
+            STORY = { schema: 2, unlockedMax: clamp(parseInt(sd.unlockedMax) || 1, 1, STORY_LEVEL_COUNT), stars: sd.stars || {}, done: sd.done || {}, events: sd.events || {}, rewards: sd.rewards || {}, arcDone: !!sd.arcDone };
+        }
         if (d.totalCoins !== undefined) totalCoins = d.totalCoins;
         if (d.selectedSkin && SKINS[d.selectedSkin]) selectedSkin = d.selectedSkin;
         if (d.maxLives) maxLives = d.maxLives;
@@ -128,6 +835,7 @@ function loadGame() {
         if (d.musicVolume !== undefined) musicVolume = d.musicVolume;
         if (d.sfxVolume !== undefined) sfxVolume = d.sfxVolume;
         if (d.currentSeason && d.currentSeason >= 1 && d.currentSeason <= SEASON_COUNT) currentSeason = d.currentSeason;
+        while (currentSeason > 1 && !storyChapterOpen(currentSeason)) currentSeason--;   // فصل ذخیره‌شده‌ی قدیمی که هنوز در داستان جدید باز نشده
         if (d.gfxQuality) gfxQuality = d.gfxQuality;
         if (d.endlessKeys !== undefined) endlessKeys = d.endlessKeys;
         if (d.endlessKeyTimestamp) endlessKeyTimestamp = d.endlessKeyTimestamp;
@@ -695,7 +1403,7 @@ const LEVELS6 = {
     25: V({ length: 9000, isBoss: true, bossType: "volcanoLord", bossHealth: 60, bossPhases: 3, bossChaseSpeed: 2.2, bossShootInterval: 210, bossPauseInterval: 500, bossPauseDuration: 85, arrowPickupCount: 24, noStars: true })
 };
 
-function activeLevels() { if (inEndlessRun) return { 1: endlessActiveCfg }; return currentSeason === 1 ? LEVELS1 : currentSeason === 2 ? LEVELS2 : currentSeason === 3 ? LEVELS3 : currentSeason === 4 ? LEVELS4 : currentSeason === 5 ? LEVELS5 : LEVELS6; }
+function activeLevels() { if (inEndlessRun) return { 1: endlessActiveCfg }; return storyLevelsOf(currentSeason); }   // فصل‌های قدیمی حذف شدند؛ فقط ۸ فصل داستانی
 // ===== Dungeon: تولید پویای هر طبقه، با استفاده‌ی مجدد از کل موتور بازی =====
 let inEndlessRun = false, endlessActiveCfg = null;
 // Endless: بدون چاله و بدون غارِ Story — خطرهای این حالت Trap است (فاز ۲)، نه Pit
@@ -723,13 +1431,11 @@ for (const n in LEVELS5) { levelStars5[n] = 0; levelUnlocked5[n] = false; }
 for (const n in LEVELS6) { levelStars6[n] = 0; levelUnlocked6[n] = false; }
 function activeUnlocked() { return currentSeason === 1 ? levelUnlocked1 : currentSeason === 2 ? levelUnlocked2 : currentSeason === 3 ? levelUnlocked3 : currentSeason === 4 ? levelUnlocked4 : currentSeason === 5 ? levelUnlocked5 : levelUnlocked6; }
 function activeStars() { return currentSeason === 1 ? levelStars1 : currentSeason === 2 ? levelStars2 : currentSeason === 3 ? levelStars3 : currentSeason === 4 ? levelStars4 : currentSeason === 5 ? levelStars5 : levelStars6; }
-const SEASON_COUNT = 6;
-function seasonDone(n) {
-    const u = n === 1 ? levelUnlocked1 : n === 2 ? levelUnlocked2 : n === 3 ? levelUnlocked3 : n === 4 ? levelUnlocked4 : n === 5 ? levelUnlocked5 : levelUnlocked6;
-    return !!u.done25;
-}
-function seasonOpen(n) { return n === 1 || seasonDone(n - 1); }
-function endlessUnlocked() { return seasonDone(2); } // عبور واقعی از مرحله‌ی ۵۰ (پایان فصل تابستان)
+const SEASON_COUNT = STORY_CHAPTER_COUNT;
+function legacySeasonDone(n) { const u = n === 1 ? levelUnlocked1 : n === 2 ? levelUnlocked2 : n === 3 ? levelUnlocked3 : n === 4 ? levelUnlocked4 : n === 5 ? levelUnlocked5 : levelUnlocked6; return !!(u && u.done25); }
+function seasonDone(n) { return storyChapterDone(n); }
+function seasonOpen(n) { return storyChapterOpen(n); }
+function endlessUnlocked() { return legacySeasonDone(2) || storyChapterDone(2); } // کسی که قبلاً حالت بی‌نهایت را باز کرده، آن را از دست نمی‌دهد
 
 // ===== سیستم Key برای حالت بی‌نهایت =====
 const ENDLESS_MAX_KEYS = 3, KEY_RECHARGE_MS = 3600000; // ۱ ساعت
@@ -754,6 +1460,7 @@ function msToNextKey() {
 }
 function unlockAllLevels() {
     [levelUnlocked1, levelUnlocked2, levelUnlocked3, levelUnlocked4, levelUnlocked5, levelUnlocked6].forEach(u => { for (let i = 1; i <= 25; i++) u[i] = true; u.done25 = true; });
+    STORY.unlockedMax = STORY_LEVEL_COUNT; for (let i = 1; i <= STORY_LEVEL_COUNT; i++) { STORY.done[i] = 1; STORY.stars[i] = STORY.stars[i] || 1; }
     hasSuit = true; saveGame();
 }
 
@@ -815,12 +1522,10 @@ function simulateClick(p) {
     else if (gameState === "levels") {
         levelButtons.forEach(b => {
             if (pointInRect(p.x, p.y, b)) {
-                if (seasonOpen(currentSeason) && activeUnlocked()[b.number]) {
-                    const showIntro = currentSeason === 1 && b.number === 1 && !introShown;
+                if (storyChapterOpen(currentSeason) && storyUnlocked(storyG(currentSeason, b.number))) {
                     initLevel(b.number);
                     sfx("levelSelect");
-                    if (showIntro) { introShown = true; saveGame(); cutT = 0; cutsceneType = "intro"; gameState = "cutscene"; }
-                    else gameState = "playing";
+                    gameState = "playing";
                 } else { lockShake = 22; lockShakeNum = b.number; sfx("locked"); }
             }
         });
@@ -840,6 +1545,7 @@ function simulateClick(p) {
         settingsButtons.forEach(b => { if (pointInRect(p.x, p.y, b) && b.action) b.action(); });
         if (pointInRect(p.x, p.y, backToMenuRect)) gameState = "menu";
     } else if (gameState === "playing") {
+        if (SE.on && seTapSkip(p)) return;
         const hudHit = (r) => p.x >= r.x - 3 && p.x <= r.x + r.w + 3 && p.y >= r.y - 10 && p.y <= r.y + r.h + 12; // حاشیه‌ی لمسیِ نامرئی برای انگشت
         if (hudHit(pauseButtonRect)) { gameState = "paused"; releaseAllTouches(); return; }
         if (hudHit(shieldButtonRect) && shieldInventory > 0 && !player.hasShield) { shieldInventory--; player.hasShield = true; saveGame(); }
@@ -959,7 +1665,7 @@ if (window.visualViewport) window.visualViewport.addEventListener("resize", resi
 document.addEventListener("fullscreenchange", () => setTimeout(resizeGame, 80));
 function inCircle(px, py, c) { if (!c) return false; const dx = px - c.x, dy = py - c.y; return dx * dx + dy * dy <= (c.r + 12) * (c.r + 12); }
 function doJump() {
-    if (gameState !== "playing") return;
+    if (gameState !== "playing" || SE.lock) return;
     if (!player.isJumping && !player.pitFalling) { player.velocityY = player.jumpPower * (shoeActive > 0 ? 1.8 : 1) * (activeLevels()[currentLevel].lowGrav ? 0.92 : 1); player.isJumping = true; player.onSurface = null; landSquash = 0; dust(player.worldX, player.y + player.height, 4, player.facing); sfx("jump"); }
 }
 function cutJump() { if (gameState === "playing" && player.velocityY < 0) player.velocityY *= 0.35; }
@@ -1150,9 +1856,10 @@ function safePosX(base, pits, others, minDist) {
     while (tries++ < 20) { if (!isInPit(x, pits) && !others.some(o => Math.abs((o.x || o) - x) < minDist)) return x; x += 65 + rng() * 40; }
     return x;
 }
-function levelHasArrows() { const cfg = activeLevels()[currentLevel]; return cfg.isBoss || (cfg.arrowCount && cfg.arrowCount > 0) || (genSeason() >= 3); }
+function levelHasArrows() { const cfg = activeLevels()[currentLevel]; return (SE.on && SE.arrows) || cfg.isBoss || (cfg.arrowCount && cfg.arrowCount > 0) || (genSeason() >= 3); }
 
-function initLevel(num) {
+function _initLevelCore(num) {
+    seReset();   // پاک‌سازی کامل موتور داستان (رویدادها، اشیا، باس، قفل کنترل) بین مراحل
     currentLevel = num;
     if (inEndlessRun) { extRng = makeRng(endlessSeed(endlessCurrentFloor) ^ 0x9E3779B9); rng = makeRng(endlessSeed(endlessCurrentFloor)); }
     else { extRng = seedLevelRNG(currentSeason + 50, num); rng = seedLevelRNG(currentSeason, num); }
@@ -1174,7 +1881,7 @@ function initLevel(num) {
     player.pitFalling = false; player.hasShield = false; player.facing = 1; player.onSurface = null;
     lives = maxLives; invulnFrames = 0; deadFlag = false;
     shoeActive = 0; thunderActive = 0;
-    levelTimeLeft = LEVEL_TIME;
+    levelTimeLeft = cfg.timeSec ? cfg.timeSec * 60 : LEVEL_TIME;
 
     starsCollectedThisRun = 0; progressPercent = 0; boss = null;
     arrowsInLevel = persistentArrows;
@@ -1184,13 +1891,15 @@ function initLevel(num) {
     oxygenWarn = (cfg.needSuit && !hasSuit) ? 150 : 0;
 
     // چمن — فقط در دنیاهای زمینی معنا دارد؛ در ماه و زهره اصلاً ساخته نمی‌شود
-    if (!cfg.space && !cfg.venus && !cfg.dungeon) {
+    if (!cfg.space && !cfg.venus && !cfg.dungeon && !cfg.story) {
         for (let x = 0; x < LEVEL_LENGTH; x += 16 + rng() * 14) {
             if (!isInPit(x, currentPits)) grassTufts.push({ x, height: 5 + rng() * 18, lean: 0, flower: hash01(x) > 0.88 });
         }
     }
     // پوشش زمین (درخت/بوته یا سنگ و گودال ماه)
-    if (cfg.dungeon && cfg.rooms) {
+    if (cfg.story) {
+        storyProps(cfg);
+    } else if (cfg.dungeon && cfg.rooms) {
         // دکور هر اتاق در buildEndlessRooms ساخته می‌شود
     } else if (cfg.dungeon) {
         for (let x = 120; x < LEVEL_LENGTH; x += 130 + rng() * 110) {
@@ -1227,7 +1936,7 @@ function initLevel(num) {
             let g2 = 0; while (isInPit(bx, currentPits) && g2++ < 12) bx += 52;
             blocks.push({ x: bx, hit: false, fadeTimer: 0, extra: genSeason() >= 3 && i % 3 === 0 });
         }
-        const bEn = inEndlessRun ? "goblin" : currentSeason === 6 ? "lavaGolem" : currentSeason === 5 ? "slime" : currentSeason === 4 ? "wolf" : currentSeason === 2 ? "cactus" : "hedgehog";
+        const bEn = inEndlessRun ? "goblin" : cfg.story ? "hedgehog" : currentSeason === 6 ? "lavaGolem" : currentSeason === 5 ? "slime" : currentSeason === 4 ? "wolf" : currentSeason === 2 ? "cactus" : "hedgehog";
         for (let i = 0; i < 5; i++) {
             let ex = 620 + i * ((LEVEL_LENGTH - 900) / 5) + rng() * 320;
             let g3 = 0; while (isInPit(ex, currentPits) && g3++ < 12) ex += 70;
@@ -1296,8 +2005,8 @@ function initLevel(num) {
             for (let k = -3; k <= 3; k++) coins.push({ x: cMid + k * 26, py: floorY - 22 - Math.abs(k) * 4, heightOffset: 0, collected: false, cave });
             for (let k = 0; k < 4; k++) coins.push({ x: x1 + 170 + k * 30, py: floorY - 20, heightOffset: 0, collected: false, cave });
             if (levelHasArrows()) { arrowPickups.push({ x: cMid - 120, py: floorY - 18, collected: false, cave }); arrowPickups.push({ x: cMid + 120, py: floorY - 18, collected: false, cave }); }
-            const cEn = currentSeason === 6 ? "steamWraith" : currentSeason === 4 ? "wolf" : currentSeason === 2 ? "hedgehog" : "snail";
-            for (let k = 0; k < 2; k++) enemies.push({ kind: cEn, x: cMid + (k ? 150 : -150), alive: true, dying: false, deathTimer: 0, facing: 1, wanderDir: 1, wanderTimer: 80, cave });
+            const cEn = cfg.story ? "snail" : currentSeason === 6 ? "steamWraith" : currentSeason === 4 ? "wolf" : currentSeason === 2 ? "hedgehog" : "snail";
+            for (let k = 0; k < (cfg.storyEasy ? 0 : 2); k++) enemies.push({ kind: cEn, x: cMid + (k ? 150 : -150), alive: true, dying: false, deathTimer: 0, facing: 1, wanderDir: 1, wanderTimer: 80, cave });
         }
     }
 
@@ -3852,7 +4561,7 @@ function loseLife() {
 
 // ===================== ARROWS =====================
 function fireArrow() {
-    if (arrowsInLevel <= 0) return;
+    if (arrowsInLevel <= 0 || SE.lock) return;
     arrowsInLevel--; persistentArrows = arrowsInLevel;
     arrows.push({ x: player.worldX + player.facing * 18, y: player.y + 22, dir: player.facing });
 }
@@ -4519,6 +5228,13 @@ function updateCamera() {
 
 // ===================== WIN =====================
 function triggerWin() {
+    const _cfg = activeLevels()[currentLevel];
+    if (_cfg && _cfg.story) {                                         // پیشرفت داستان: ستاره، باز شدن مرحله/فصل بعد، پاداش فقط یک‌بار
+        const n = _cfg.storyN; storyComplete(n, starsCollectedThisRun);
+        const rw = storyClaimReward(n); if (rw) totalCoins += rw;
+        if (n >= 20) livesUpgradeUnlocked = true;
+        winAnimStartFrame = globalFrame; saveGame(); return;
+    }
     activeStars()[currentLevel] = Math.max(activeStars()[currentLevel] || 0, starsCollectedThisRun);
     const n = currentLevel + 1;
     if (activeLevels()[n]) activeUnlocked()[n] = true;
@@ -4906,6 +5622,7 @@ function drawRocket(x, y, s, thrust, tilt) {
 function updatePlaying() {
     if (endlessClimb) { frameCount++; updateParticles(); updateCamera(); updateEndlessClimb(); return; }
     frameCount++;
+    if (SE.on) seUpdate();
     if (invulnFrames > 0) invulnFrames--;
     if (shoeActive > 0) shoeActive--;
     if (thunderActive > 0) thunderActive--;
@@ -4926,6 +5643,7 @@ function updatePlaying() {
 
     updatePlayerPhysics();
     if (gameState !== "playing") return;
+    if (SE.on) seLate();
 
     const moving = keys.left || keys.right;
     {   // فقط علف‌های نزدیک بازیکن
@@ -4976,7 +5694,8 @@ function updatePlaying() {
     if (gameState !== "playing") return;
     progressPercent = Math.min(100, (player.worldX / LEVEL_LENGTH) * 100);
     if (!inEndlessRun && player.worldX >= LEVEL_LENGTH - 30) {
-        triggerWin(); gameState = "win"; sfx("win");
+        if (SE.on) { if (seGoalMet() && !SE.ev && !SE.queue.length) seFinishLevel(); else { player.worldX = LEVEL_LENGTH - 31; seHintGoal(); } }   // مرحله‌ی داستانی: بدون تکمیل هدف پایان نمی‌یابد
+        else { triggerWin(); gameState = "win"; sfx("win"); }
     }
     if (inEndlessRun && !endlessClimb && endlessExitX != null && player.worldX >= endlessExitX - 40) startEndlessClimb();
 }
@@ -5030,6 +5749,7 @@ function drawPriceTag(cx, cy, txt, color, size) {
 // ===================== SEASON THEME =====================
 function getSeason() {
     const lv = activeLevels()[currentLevel];
+    if (lv && lv.story) return STORY_ENV_KEY[lv.env] || "lab";
     if (lv && lv.dungeon) return "dungeon";
     if (lv && lv.venus) return "venus";
     if (lv && lv.space) return "space";
@@ -5068,6 +5788,8 @@ const THEMES = {
         hillFar: "#2A2B30", hillNear: "#3A3C42", grassBlade: "#5C5F68"
     }
 };
+
+Object.assign(THEMES, STORY_THEMES);
 
 // ===== راه‌پله‌ی خروج طبقه (Dungeon): دروازه‌ی سنگی + ۵ پله + نور =====
 function drawEndlessExit(cO) {
@@ -6379,7 +7101,7 @@ function drawPlayer() {
     // خم شدن با شیب زمین + انیمیشن کشش/فشردگی (squash & stretch)
     const tilt = (!inAir && !player.onSurface) ? playerSlope() * 0.7 : 0;
     ctx.translate(0, 50); ctx.rotate(tilt); ctx.translate(0, -50);
-    if ((activeLevels()[currentLevel].space || activeLevels()[currentLevel].venus) && hasSuit) { ctx.save(); ctx.scale(player.facing, 1); drawAstronaut(0, 50, 0.92, selectedSkin); ctx.restore(); }
+    if ((activeLevels()[currentLevel].space || activeLevels()[currentLevel].venus || activeLevels()[currentLevel].suitOn) && hasSuit) { ctx.save(); ctx.scale(player.facing, 1); drawAstronaut(0, 50, 0.92, selectedSkin); ctx.restore(); }
     else drawCharacter(0, 50, 1, selectedSkin, player.facing, legSwing, inAir);
     ctx.restore();
 }
@@ -6392,6 +7114,7 @@ function drawCloud(x, y, scale, alpha) {
 }
 function drawSky() {
     const s = getSeason(), W = canvas.width, H = canvas.height;
+    if (STORY_SKY_KEYS[s]) { drawStorySky(s); return; }
     if (s === "space") {
         ctx.fillStyle = vGrad("skyX", 0, H, [[0, "#05030F"], [0.45, "#0E0A26"], [0.8, "#1B1338"], [1, "#2A2050"]]);
         ctx.fillRect(0, 0, W, H);
@@ -6624,7 +7347,7 @@ function blendC(h1, h2, t) {
 }
 function drawParallaxHills() {
     const s = getSeason();
-    if (s === "space" || s === "venus" || s === "dungeon") return; // این فصل‌ها پس‌زمینه‌ی دوردست کاملاً مخصوص خودشان را در drawSky دارند
+    if (s === "space" || s === "venus" || s === "dungeon" || STORY_SKY_KEYS[s]) return; // این فصل‌ها پس‌زمینه‌ی دوردست کاملاً مخصوص خودشان را در drawSky دارند
     const th = THEMES[s], W = canvas.width, H = canvas.height;
     ctx.beginPath(); ctx.moveTo(0, H);
     for (let sx = 0; sx <= W; sx += 26) ctx.lineTo(sx, farHillY(sx + player.worldX * 0.25));
@@ -6708,6 +7431,7 @@ function drawGroundAndBackground() {
         }
     }
     if (s === "dungeon") drawDungeonFloorDetail(W, cO);
+    else if (STORY_SKY_KEYS[s]) drawStoryGroundDetail(s, W, cO);
     // سایه‌ی ابرهای در حال عبور روی زمین — حس نور واقعی به‌جای یک‌رنگیِ صاف؛ کاملاً تزئینی
     if (!qSkipAmbient() && (s === "spring" || s === "summer" || s === "autumn")) {
         for (let i = 0; i < 3; i++) {
@@ -6774,7 +7498,7 @@ function drawGroundAndBackground() {
     // ---- پوشش گیاهی (پنجره‌ای) ----
     eachInView(treesAndBushes, vL - 90, vR + 90, it => {
         const by = baseGroundHeightAt(it.x);
-        if (it.type === "crater") drawCrater(it.x - cO, by, it.s); else if (it.type === "moonrock") drawMoonRock(it.x - cO, by, it.s); else if (it.type === "lavavent") drawLavaVent(it.x - cO, by, it.s); else if (it.type === "obsidian") drawObsidianRock(it.x - cO, by, it.s); else if (it.type === "pillar") drawDungeonPillar(it.x - cO, by, it.s); else if (it.type === "banner") drawDungeonBanner(it.x - cO, by, it.col); else if (it.type === "brazier") drawDungeonBrazier(it.x - cO, by, it.col); else if (it.type === "skulls") drawDungeonSkulls(it.x - cO, by); else if (it.type === "crystal") drawDungeonCrystal(it.x - cO, by, it.col); else if (it.type === "runecircle") drawDungeonRuneCircle(it.x - cO, by, it.col); else if (it.type === "rubble") drawDungeonRubble(it.x - cO, by, it.s); else if (it.type === "icerock") drawIceRockDeco(it.x - cO, by); else if (it.type === "mushroom") drawMushroomDeco(it.x - cO, by); else if (it.type === "cactusDeco") drawCactusDeco(it.x - cO, by); else if (it.type === "flowerbed") drawFlowerbedDeco(it.x - cO, by); else if (it.type === "tree") drawTree(it.x - cO, by, s); else if (s === "summer") drawRock(it.x - cO, by); else drawBush(it.x - cO, by, s);
+        if (it.type.charCodeAt(0) === 112 && it.type.charCodeAt(1) === 95) drawStoryProp(it.type, it.x - cO, by, it.s); else if (it.type === "crater") drawCrater(it.x - cO, by, it.s); else if (it.type === "moonrock") drawMoonRock(it.x - cO, by, it.s); else if (it.type === "lavavent") drawLavaVent(it.x - cO, by, it.s); else if (it.type === "obsidian") drawObsidianRock(it.x - cO, by, it.s); else if (it.type === "pillar") drawDungeonPillar(it.x - cO, by, it.s); else if (it.type === "banner") drawDungeonBanner(it.x - cO, by, it.col); else if (it.type === "brazier") drawDungeonBrazier(it.x - cO, by, it.col); else if (it.type === "skulls") drawDungeonSkulls(it.x - cO, by); else if (it.type === "crystal") drawDungeonCrystal(it.x - cO, by, it.col); else if (it.type === "runecircle") drawDungeonRuneCircle(it.x - cO, by, it.col); else if (it.type === "rubble") drawDungeonRubble(it.x - cO, by, it.s); else if (it.type === "icerock") drawIceRockDeco(it.x - cO, by); else if (it.type === "mushroom") drawMushroomDeco(it.x - cO, by); else if (it.type === "cactusDeco") drawCactusDeco(it.x - cO, by); else if (it.type === "flowerbed") drawFlowerbedDeco(it.x - cO, by); else if (it.type === "tree") drawTree(it.x - cO, by, s); else if (s === "summer") drawRock(it.x - cO, by); else drawBush(it.x - cO, by, s);
     });
     if (s !== "space" && s !== "venus" && s !== "dungeon") eachInView(grassTufts, vL, vR, g => drawGrassTuft(g.x - cO, baseGroundHeightAt(g.x), g.lean, g.height, s, g.flower));
     eachInView(fruits, vL, vR, fr => { if (!fr.collected) drawFruit(fr.x - cO, fr.y + Math.sin(globalFrame * 0.04 + fr.bob) * 3); });
@@ -6812,7 +7536,8 @@ function drawGroundAndBackground() {
         const gy = en.cave ? en.cave.floorY : baseGroundHeightAt(en.x);
         const sl = (en.cave || isInPit(en.x, currentPits)) ? 0 : slopeAt(en.x);
         if (en.alive && en.kind !== "ufo" && en.kind !== "vulture") drawShadow(dx, gy, en.kind === "wolf" ? 19 : 16);
-        if (DUN_KINDS[en.kind]) drawDunEnemy(en, dx, gy);
+        if (STORY_SKIN) drawStoryEnemy(en, dx, gy, al, sl);
+        else if (DUN_KINDS[en.kind]) drawDunEnemy(en, dx, gy);
         else if (en.kind === "snail") drawSnail(dx, gy, en.facing, al, sl);
         else if (en.kind === "cactus") drawCactus(dx, gy, al, sl);
         else if (en.kind === "hunter") drawHunter(dx, gy, en.facing, al, sl);
@@ -7126,12 +7851,16 @@ function drawOxygenWarn() {
     ctx.restore(); ctx.textAlign = "start";
 }
 function drawPlayingScreen() {
-    drawGroundAndBackground(); drawPlayer();
+    const _sh = SE.on && SE.shake > 0.3;
+    if (_sh) { ctx.save(); ctx.translate((Math.random() - 0.5) * SE.shake, (Math.random() - 0.5) * SE.shake * 0.6); SE.shake *= 0.9; } else if (SE.shake) SE.shake = 0;
+    drawGroundAndBackground(); if (SE.on) seDrawWorld(); drawPlayer();
+    if (_sh) ctx.restore();
     if (inEndlessRun && getSeason() === "dungeon") drawDungeonForeground();
     drawProgressBar(); if (!inEndlessRun) drawTimerHUD(); drawCoinCtr();
     if (levelHasArrows()) drawArrowCtr(Math.max(100 + SAFE.l, hudArrowCtrX()), 26);
     drawLivesHUD(); drawShieldButton(); drawShoeButton(); drawThunderButton(); drawPauseButton();
     drawTouchControls(); drawOxygenWarn();
+    if (SE.on) seDrawHUD();
     if (inEndlessRun) {
         drawRecordBanner();
         // «طبقه X» فقط یک بار و حدود ۱ ثانیه در شروع طبقه؛ دیگر دائماً روی نوار پیشرفت تکرار نمی‌شود
@@ -7526,6 +8255,7 @@ function submitCheat() {
     if (norm.indexOf("232323") >= 0 && norm.indexOf("آرتام") >= 0) {
         unlockAllLevels(); cheatMsg = t("cheatGood"); cheatMsgT = 200;
         for (let i = 0; i < 40; i++) burstUI(canvas.width / 2, 200, ["#00E676", "#FFD700", "#fff"][i % 3]);
+    } else if (norm === "9000") { seDevStart(); cheatMsg = "OK"; cheatMsgT = 60;
     } else if (norm === "7777") { forceLuckyChest = true; cheatMsg = lang === "fa" ? "صندوق صورتی در طبقه‌ی بعدی Endless" : "Pink chest on the next Endless floor"; cheatMsgT = 200; for (let i = 0; i < 30; i++) burstUI(canvas.width / 2, 200, ["#F48FB1", "#FFD700", "#fff"][i % 3]); }
     else { cheatMsg = t("cheatBad"); cheatMsgT = 140; cheatInput = ""; }
 }
@@ -7814,182 +8544,6 @@ function drawVolcanoIcon(x, y, r) {
     ctx.restore();
 }
 
-function drawLevels() {
-    const isSummer = currentSeason === 2, isAutumn = currentSeason === 3, isWinter = currentSeason === 4, isSpace = currentSeason === 5, isVenus = currentSeason === 6;
-    let bgC1, bgC2, acc;
-    if (isVenus) { bgC1 = "#2C0B05"; bgC2 = "#B34715"; acc = "#FFAB40"; }
-    else if (isSpace) { bgC1 = "#05030F"; bgC2 = "#3A2A66"; acc = "#B388FF"; }
-    else if (isWinter) { bgC1 = "#20364F"; bgC2 = "#BBD8EC"; acc = "#E1F5FE"; }
-    else if (isAutumn) { bgC1 = "#3E2410"; bgC2 = "#A0522D"; acc = "#F5A623"; }
-    else if (isSummer) { bgC1 = "#F57F17"; bgC2 = "#FFD98E"; acc = "#FFF176"; }
-    else { bgC1 = "#A8E6A1"; bgC2 = "#3E8E41"; acc = "#FFF176"; }
-    const g = ctx.createLinearGradient(0, 0, 0, canvas.height); g.addColorStop(0, bgC2); g.addColorStop(1, bgC1); ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // دکور پس‌زمینه
-    if (isVenus) {
-        for (let i = 0; i < 26; i++) {
-            const sd = i * 6.1;
-            const fx = (hash01(sd + 1) * canvas.width + Math.sin(globalFrame * 0.02 + i) * 16 + canvas.width) % canvas.width;
-            const fy = (canvas.height - (globalFrame * (0.6 + hash01(sd) * 1.2) + hash01(sd + 3) * canvas.height) % canvas.height);
-            ctx.globalAlpha = 0.4 + hash01(sd * 2) * 0.5; ctx.fillStyle = i % 3 === 0 ? "#FFEB3B" : "#FF7043";
-            ctx.beginPath(); ctx.arc(fx, fy, 1.6 + hash01(sd * 5) * 1.8, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "#3E1D0A"; ctx.beginPath(); ctx.moveTo(60, canvas.height - 22); ctx.lineTo(160, canvas.height - 120); ctx.lineTo(260, canvas.height - 22); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#3E1D0A"; ctx.beginPath(); ctx.moveTo(canvas.width - 260, canvas.height - 22); ctx.lineTo(canvas.width - 150, canvas.height - 140); ctx.lineTo(canvas.width - 60, canvas.height - 22); ctx.closePath(); ctx.fill();
-    } else if (isSpace) {
-        for (let i = 0; i < 40; i++) {
-            const sx = hash01(i * 5.3) * canvas.width, sy = hash01(i * 2.9) * canvas.height;
-            ctx.globalAlpha = 0.3 + Math.abs(Math.sin(globalFrame * 0.05 + i)) * 0.6;
-            ctx.fillStyle = "#fff"; ctx.fillRect(sx, sy, 1.8, 1.8);
-        }
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "#8A8F9E"; ctx.beginPath(); ctx.ellipse(canvas.width / 2, canvas.height + 34, canvas.width * 0.72, 92, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#6B7183"; ctx.beginPath(); ctx.ellipse(180, canvas.height - 24, 40, 10, 0, 0, Math.PI * 2); ctx.ellipse(600, canvas.height - 16, 52, 12, 0, 0, Math.PI * 2); ctx.fill();
-    } else if (isWinter) {
-        for (let i = 0; i < 34; i++) {
-            const sx = (hash01(i * 7.7) * canvas.width + Math.sin(globalFrame * 0.012 + i) * 20 + canvas.width) % canvas.width;
-            const sy = (hash01(i * 3.3) * canvas.height + globalFrame * (0.5 + hash01(i) * 1.1)) % canvas.height;
-            ctx.globalAlpha = 0.45 + hash01(i * 2) * 0.5; ctx.fillStyle = "#fff";
-            ctx.beginPath(); ctx.arc(sx, sy, 1.2 + hash01(i * 5) * 1.6, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.beginPath(); ctx.ellipse(140, canvas.height + 26, 300, 86, 0, 0, Math.PI * 2); ctx.ellipse(660, canvas.height + 44, 320, 96, 0, 0, Math.PI * 2); ctx.fill();
-    } else if (isAutumn) {
-        for (let i = 0; i < 8; i++) { const lx = (hash01(i * 7) * canvas.width + globalFrame * 0.4) % canvas.width, ly = (hash01(i * 13) * 200 + globalFrame * 0.5) % (canvas.height - 60) + 30; drawLeafIcon(lx, ly, 0.9, ["#D4420F", "#E8841A", "#F5A623"][i % 3]); }
-    } else if (isSummer) {
-        drawSunIcon(canvas.width - 90, 70, 26);
-        ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.beginPath(); ctx.ellipse(150, canvas.height + 30, 300, 90, 0, 0, Math.PI * 2); ctx.ellipse(650, canvas.height + 50, 320, 100, 0, 0, Math.PI * 2); ctx.fill();
-    } else {
-        drawCloud((globalFrame * 0.15) % (canvas.width + 160) - 80, 60, 0.8, 0.7);
-        ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.beginPath(); ctx.ellipse(120, canvas.height + 30, 300, 90, 0, 0, Math.PI * 2); ctx.ellipse(680, canvas.height + 50, 320, 100, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    // نوار زمین تزئینی پایین
-    if (!isSpace) { ctx.fillStyle = isVenus ? "#6B1E0E" : isWinter ? "#FFFFFF" : isAutumn ? "#6B3410" : isSummer ? "#C77B1B" : "#2E7D32"; ctx.fillRect(0, canvas.height - 22, canvas.width, 22); }
-
-    drawCoinCtr(canvas.width - 90, 26);
-    drawButton(Object.assign({}, backToMenuRect, { label: t("back"), color: "rgba(38,50,56,0.75)" }));
-
-    // هدر فصل با آیکون
-    const sName = currentSeason === 1 ? t("season1") : currentSeason === 2 ? t("season2") : currentSeason === 3 ? t("season3") : currentSeason === 4 ? t("season4") : currentSeason === 5 ? t("season5") : t("season6");
-    ctx.save();
-    ctx.textAlign = "center"; ctx.font = F(28, 900);
-    ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowOffsetY = 3; ctx.fillStyle = "#fff";
-    ctx.fillText(sName, canvas.width / 2, 52);
-    ctx.restore();
-    seasonIcon(currentSeason, canvas.width / 2 - 90, 44, 9);
-    seasonIcon(currentSeason, canvas.width / 2 + 90, 44, 9);
-
-    // شمارش ستاره‌های فصل
-    const starsMap = activeStars();
-    let starSum = 0; for (let i = 1; i <= 25; i++) starSum += starsMap[i] || 0;
-    drawStarShape(canvas.width / 2 - 40, 70, 8, acc);
-    ctx.fillStyle = "#fff"; ctx.font = F(14); ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 3;
-    ctx.fillText(starSum + " / 72", canvas.width / 2 - 28, 75); ctx.shadowBlur = 0; ctx.textAlign = "start";
-
-    // پیکان فصل بعدی — فقط وقتی واقعاً فصل بعدی وجود دارد نمایش داده می‌شود (بدون چرخش به فصل ۱)
-    if (seasonNavPress > 0) seasonNavPress--;
-    const nextPressed = seasonNavPress > 0 && seasonNavPressDir === 1, prevPressed = seasonNavPress > 0 && seasonNavPressDir === -1;
-    const nextScale = nextPressed ? 0.92 : 1, prevScale = prevPressed ? 0.92 : 1;
-    const hasNextSeason = currentSeason < SEASON_COUNT, hasPrevSeason = currentSeason > 1;
-    seasonArrowRect = hasNextSeason ? rect(canvas.width - 86, canvas.height - 66, 62, 46) : rect(-999, -999, 0, 0);
-    if (hasNextSeason) {
-        ctx.save(); ctx.translate(seasonArrowRect.x + seasonArrowRect.w / 2, seasonArrowRect.y + seasonArrowRect.h / 2); ctx.scale(nextScale, nextScale); ctx.translate(-(seasonArrowRect.x + seasonArrowRect.w / 2), -(seasonArrowRect.y + seasonArrowRect.h / 2));
-        ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = nextPressed ? 3 : 6; ctx.shadowOffsetY = nextPressed ? 1 : 3;
-        ctx.fillStyle = nextPressed ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.92)"; roundRect(seasonArrowRect.x, seasonArrowRect.y, seasonArrowRect.w, seasonArrowRect.h, 12); ctx.fill(); ctx.restore();
-        const nextS = currentSeason + 1;
-        seasonIcon(nextS, seasonArrowRect.x + 18, seasonArrowRect.y + 23, 8);
-        ctx.strokeStyle = "#37474F"; ctx.lineWidth = 4; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(seasonArrowRect.x + 34, seasonArrowRect.y + 14); ctx.lineTo(seasonArrowRect.x + 46, seasonArrowRect.y + 23); ctx.lineTo(seasonArrowRect.x + 34, seasonArrowRect.y + 32); ctx.stroke();
-    }
-
-    // پیکان فصل قبلی — در فصل اول اصلاً نمایش داده نمی‌شود
-    prevSeasonArrowRect = hasPrevSeason ? rect(24, canvas.height - 66, 62, 46) : rect(-999, -999, 0, 0);
-    if (hasPrevSeason) {
-        ctx.save(); ctx.translate(prevSeasonArrowRect.x + prevSeasonArrowRect.w / 2, prevSeasonArrowRect.y + prevSeasonArrowRect.h / 2); ctx.scale(prevScale, prevScale); ctx.translate(-(prevSeasonArrowRect.x + prevSeasonArrowRect.w / 2), -(prevSeasonArrowRect.y + prevSeasonArrowRect.h / 2));
-        ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = prevPressed ? 3 : 6; ctx.shadowOffsetY = prevPressed ? 1 : 3;
-        ctx.fillStyle = prevPressed ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.92)"; roundRect(prevSeasonArrowRect.x, prevSeasonArrowRect.y, prevSeasonArrowRect.w, prevSeasonArrowRect.h, 12); ctx.fill(); ctx.restore();
-        const prevS = currentSeason - 1;
-        seasonIcon(prevS, prevSeasonArrowRect.x + 44, prevSeasonArrowRect.y + 23, 8);
-        ctx.strokeStyle = "#37474F"; ctx.lineWidth = 4; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(prevSeasonArrowRect.x + 28, prevSeasonArrowRect.y + 14); ctx.lineTo(prevSeasonArrowRect.x + 16, prevSeasonArrowRect.y + 23); ctx.lineTo(prevSeasonArrowRect.x + 28, prevSeasonArrowRect.y + 32); ctx.stroke();
-    }
-
-    if (!seasonOpen(currentSeason)) {
-        ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.5)"; roundRect(canvas.width / 2 - 170, 76, 340, 30, 10); ctx.fill();
-        ctx.fillStyle = "#FFCDD2"; ctx.font = F(14, 900); ctx.textAlign = "center";
-        ctx.fillText("🔒 " + t("seasonLocked"), canvas.width / 2, 96); ctx.restore(); ctx.textAlign = "start";
-    }
-    // کارت‌های مراحل
-    if (lockShake > 0) lockShake--;
-    levelButtons = [];
-    const LVLS = activeLevels();
-    const cols = 5, rows = 5, cW = 96, cH = 56, gap = 12, gW = cols * cW + (cols - 1) * gap;
-    const sX = (canvas.width - gW) / 2, sY = 92;
-    let num = 1;
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const bx = sX + c * (cW + gap), by = sY + r * (cH + gap);
-            const isBoss = LVLS[num] && LVLS[num].isBoss;
-            const b = rect(bx, by, cW, cH); b.number = num; levelButtons.push(b);
-            const unlocked = seasonOpen(currentSeason) && !!activeUnlocked()[num];
-            const shakeOff = (lockShake > 0 && lockShakeNum === num) ? Math.sin(lockShake * 0.9) * 4 : 0;
-            ctx.save();
-            if (shakeOff) ctx.translate(shakeOff, 0);
-            if (!unlocked) {
-                ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
-                const lg = ctx.createLinearGradient(0, by, 0, by + cH);
-                lg.addColorStop(0, "#6B7A87"); lg.addColorStop(1, "#414E59");
-                ctx.fillStyle = lg; roundRect(bx, by, cW, cH, 12); ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1.5; roundRect(bx, by, cW, cH, 12); ctx.stroke();
-                // قفل
-                const lx = bx + cW / 2, ly = by + cH / 2 - 2;
-                ctx.strokeStyle = "#CFD8DC"; ctx.lineWidth = 3.2;
-                ctx.beginPath(); ctx.arc(lx, ly - 5, 6.5, Math.PI, 2 * Math.PI); ctx.stroke();
-                ctx.fillStyle = "#CFD8DC"; roundRect(lx - 10, ly - 4, 20, 15, 3); ctx.fill();
-                ctx.fillStyle = "#546E7A"; ctx.beginPath(); ctx.arc(lx, ly + 2.5, 2.2, 0, Math.PI * 2); ctx.fill();
-                ctx.fillRect(lx - 1, ly + 3, 2, 5);
-                ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = F(11, 900); ctx.textAlign = "center";
-                ctx.fillText(String(isVenus ? num + 125 : isSpace ? num + 100 : isWinter ? num + 75 : isAutumn ? num + 50 : isSummer ? num + 25 : num), bx + cW / 2, by + 15);
-                ctx.textAlign = "start";
-                ctx.restore(); num++; continue;
-            }
-            ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
-            if (isBoss) {
-                const pulse = 0.5 + Math.sin(globalFrame * 0.06) * 0.2;
-                ctx.fillStyle = "#7F0000"; roundRect(bx, by, cW, cH, 12); ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = "rgba(255,82,82," + pulse + ")"; ctx.lineWidth = 2.5; roundRect(bx, by, cW, cH, 12); ctx.stroke();
-            } else {
-                const cardG = ctx.createLinearGradient(0, by, 0, by + cH);
-                if (isVenus) { cardG.addColorStop(0, "#FF7043"); cardG.addColorStop(1, "#BF360C"); }
-                else if (isSpace) { cardG.addColorStop(0, "#9575CD"); cardG.addColorStop(1, "#4527A0"); }
-                else if (isWinter) { cardG.addColorStop(0, "#E3F2FD"); cardG.addColorStop(1, "#7FB3D5"); }
-                else if (isAutumn) { cardG.addColorStop(0, "#D2691E"); cardG.addColorStop(1, "#8B3A0F"); }
-                else if (isSummer) { cardG.addColorStop(0, "#FFB300"); cardG.addColorStop(1, "#F57C00"); }
-                else { cardG.addColorStop(0, "#FFC107"); cardG.addColorStop(1, "#FF8F00"); }
-                ctx.fillStyle = cardG; roundRect(bx, by, cW, cH, 12); ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = "rgba(255,255,255,0.22)"; roundRect(bx + 3, by + 3, cW - 6, cH / 2 - 3, 9); ctx.fill();
-                ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 1.5; roundRect(bx, by, cW, cH, 12); ctx.stroke();
-            }
-            ctx.restore();
-            const dNum = isVenus ? (num + 125) : isSpace ? (num + 100) : isWinter ? (num + 75) : isAutumn ? (num + 50) : isSummer ? (num + 25) : num;
-            ctx.fillStyle = isBoss ? "#FFCDD2" : isVenus ? "#FFF3E0" : isSpace ? "#EDE7F6" : isWinter ? "#1A3A56" : "#4E2600"; ctx.font = F(19, 900); ctx.textAlign = "center";
-            ctx.fillText(String(dNum), bx + cW / 2, by + 27);
-            if (isBoss) {
-                drawDevilIcon(bx + cW / 2, by + cH - 12);
-            } else {
-                const earned = starsMap[num] || 0;
-                for (let i = 0; i < 3; i++) drawStarShape(bx + cW / 2 - 17 + i * 17, by + cH - 11, 6.5, i < earned ? "#FFEB3B" : "rgba(0,0,0,0.22)");
-            }
-            ctx.textAlign = "start"; num++;
-        }
-    }
-}
-
 // ===================== SHOP =====================
 // پیش‌نمایش اسکین با همان رندر اصلی بازی
 function drawSkinPrev(cx, cy, key) {
@@ -8134,7 +8688,7 @@ function drawEndScreen(win) {
     if (win) drawConfetti();
     if (win && !cfg.noStars) drawStarsWin(); drawCoinCtr();
     const bw = 230, bh = 52, cx = canvas.width / 2 - bw / 2; endButtons = []; let sy = win ? 240 : 230;
-    if (win) { const ne = !!activeLevels()[currentLevel + 1]; endButtons.push(Object.assign(rect(cx, sy, bw, bh), { label: t("nextLevel"), color: ne ? "#FFA000" : "#9E9E9E", action: ne ? () => { initLevel(currentLevel + 1); gameState = "playing"; } : null })); sy += 62; }
+    if (win) { const _cfgW = activeLevels()[currentLevel], _nextCh = !activeLevels()[currentLevel + 1] && _cfgW && _cfgW.story && currentSeason < STORY_CHAPTER_COUNT && storyChapterOpen(currentSeason + 1), ne = !!activeLevels()[currentLevel + 1] || _nextCh; endButtons.push(Object.assign(rect(cx, sy, bw, bh), { label: t("nextLevel"), color: ne ? "#FFA000" : "#9E9E9E", action: ne ? () => { if (_nextCh) { currentSeason++; initLevel(1); } else initLevel(currentLevel + 1); gameState = "playing"; } : null })); sy += 62; }
     else if (extraLifeInventory > 0) { endButtons.push(Object.assign(rect(cx, sy, bw, bh), { label: t("useLife"), color: "#8BC34A", action: () => { extraLifeInventory--; player.pitFalling = false; player.isJumping = false; player.velocityY = 0; player.onSurface = null; let sx2 = player.worldX - 80; while (isInPit(sx2, currentPits) && sx2 > 0) sx2 -= 30; player.worldX = Math.max(10, sx2); player.y = baseGroundHeightAt(player.worldX) - player.height; lives = 1; invulnFrames = 100; deadFlag = false; levelTimeLeft = LEVEL_TIME; clearNearbyHazards(); saveGame(); gameState = "playing"; } })); sy += 62; }
     endButtons.push(Object.assign(rect(cx, sy, bw, bh), { label: t("restart"), color: "#42A5F5", action: () => { initLevel(currentLevel); gameState = "playing"; } })); sy += 62;
     endButtons.push(Object.assign(rect(cx, sy, bw, bh), { label: t("menu"), color: "#546E7A", action: () => { if (inEndlessRun) { inEndlessRun = false; endlessRunActive = false; saveGame(); } gameState = "menu"; } }));
